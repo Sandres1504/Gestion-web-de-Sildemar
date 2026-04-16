@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>Sildemar - Gestión de Usuarios</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <link rel="stylesheet" href="../css/styles.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+</head>
+
+<body>
+
+    <div class="sidebar" id="sidebar">
+    <h2>SILDEMAR</h2>
+
+    <a href="dashboard.html">
+        <i class="fas fa-home"></i> Inicio
+    </a>
+
+    <a href="gestion_usuarios.html">
+        <i class="fas fa-user-plus"></i> Crear Usuarios
+    </a>
+
+    <a href="inventario.html">
+        <i class="fas fa-boxes"></i> Inventario
+    </a>
+
+    <a href="solicitudes.html">
+        <i class="fas fa-shopping-cart"></i> Solicitudes
+    </a>
+
+    <a href="Historial_clientes.html">
+        <i class="fas fa-users"></i> Historial Clientes
+    </a>
+
+    <a href="reportes.html">
+        <i class="fas fa-file-pdf"></i> Reportes
+    </a>
+
+    <a href="../index.html" class="btn-logout" id="logout-btn">
+        <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+    </a>
+</div>
+
+
+    <div class="main-content">
+
+        <div class="header-flex">
+
+            <h1>Administración de Usuarios</h1>
+
+        </div>
+
+
+            <!-- FORMULARIO ÚNICO CONSOLIDADO -->
+            <div class="card" style="grid-column: 1 / -1;">
+                <h3>Registrar Nuevo Empleado</h3>
+                <form id="form-user" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+                    <input type="number" id="u-cedula" placeholder="Cédula" required>
+                    <input type="text" id="u-nombre" placeholder="Nombre completo" required>
+                    <input type="email" id="u-email" placeholder="correo@sildemar.com" required>
+                    <input type="password" id="u-clave" placeholder="Contraseña de acceso" required>
+                    <button type="submit" class="btn btn-blue" style="grid-column: 1 / -1; padding: 12px; margin-top: 10px;">Generar y Habilitar Usuario</button>
+                </form>
+            </div>
+
+
+        <table>
+
+            <thead>
+
+                <tr>
+
+                    <th>Nombre</th>
+
+                    <th>Correo</th>
+
+                    <th>Rol</th>
+
+                    <th style="text-align:center">Acciones</th>
+
+                </tr>
+
+            </thead>
+
+            <tbody id="tabla"></tbody>
+
+        </table>
+
+    </div>
+
+
+    <script>
+
+        async function render() {
+
+            try {
+
+                const res = await fetch('../backend/gestion_usuarios.php?action=list');
+
+                const data = await res.json();
+
+                const tabla = document.getElementById("tabla");
+
+                if (data.success) {
+
+                    tabla.innerHTML = data.usuarios.map(u => `
+
+<tr>
+
+<td>${u.nombre || u.correo}</td>
+
+<td>${u.correo}</td>
+
+<td>${u.rol}</td>
+
+<td style="text-align:center">
+
+<button class="btn-action btn-delete" onclick="borrar(${u.id_usuario})">
+<i class="fas fa-trash"></i>
+</button>
+
+</td>
+
+</tr>
+
+`).join('');
+
+                }
+
+            } catch (e) {
+
+                console.error(e);
+
+            }
+
+        }
+
+
+
+        document.getElementById("form-user").onsubmit = async function (e) {
+
+            e.preventDefault();
+
+            const payload = {
+                cedula: document.getElementById("u-cedula").value,
+                nombre: document.getElementById("u-nombre").value,
+                email: document.getElementById("u-email").value,
+                clave: document.getElementById("u-clave").value,
+                rol: "Empleado",
+                role_solicitante: "Administrador" // Autorización directa para el backend
+            };
+
+            try {
+
+                const res = await fetch('../backend/gestion_usuarios.php?action=create', {
+
+                    method: 'POST',
+
+                    headers: { 'Content-Type': 'application/json' },
+
+                    body: JSON.stringify(payload)
+
+                });
+
+                const result = await res.json();
+
+                if (result.success) {
+
+                    Swal.fire('Éxito', 'Usuario creado correctamente', 'success');
+
+                    render();
+
+                } else {
+                    Swal.fire('Error', result.message || 'Error en el registro', 'error');
+                }
+
+            } catch {
+
+                Swal.fire('Error', 'Error conectando al servidor', 'error');
+
+            }
+
+        };
+
+
+
+        function borrar(id) {
+            Swal.fire({
+                title: '¿Eliminar usuario?',
+                text: "Esta acción no se puede deshacer",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    const res = await fetch('../backend/gestion_usuarios.php?action=delete&id=' + id);
+                    const data = await res.json();
+                    if (data.success) {
+                        Swal.fire('Eliminado', 'El usuario ha sido borrado', 'success');
+                        render();
+                    }
+                }
+            });
+
+        }
+
+
+
+        document.getElementById('logout-btn').onclick = (e) => {
+
+            e.preventDefault();
+
+            localStorage.removeItem('usuario_actual');
+
+            window.location.href = "../index.html";
+
+        };
+
+
+
+        window.onload = render;
+
+    </script>
+
+</body>
+
+</html>

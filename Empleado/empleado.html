@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Panel Empleado - Sildemar</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+
+    <div class="sidebar">
+
+        <h2>SILDEMAR</h2>
+
+        <a href="#"><i class="fas fa-home"></i> Mi Panel</a>
+
+        <a href="inventario.html">
+            <i class="fas fa-boxes"></i> Ver Inventario
+        </a>
+
+        <a href="nueva_solicitud.html">
+            <i class="fas fa-plus-circle"></i> Nueva Solicitud
+        </a>
+
+        <a href="mis_solicitudes.html">
+            <i class="fas fa-shopping-cart"></i> Mis Solicitudes
+        </a>
+
+        <a href="#" id="logout-btn" style="margin-top:40px;background:#c0392b;">
+            <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+        </a>
+
+    </div>
+
+    <div class="main-content">
+
+        <header>
+            <h1>Panel del Empleado</h1>
+
+            <div>
+                <i class="fas fa-user-circle"></i>
+                <span id="user-info"></span>
+            </div>
+        </header>
+
+        <div class="cards">
+
+            <div class="card">
+                <h3>🛒 Solicitudes Pendientes</h3>
+                <p>3</p>
+            </div>
+
+            <div class="card">
+                <h3>📦 Productos Consultados</h3>
+                <p>15</p>
+            </div>
+
+            <div class="card">
+                <h3>✅ Solicitudes Completadas</h3>
+                <p>12</p>
+            </div>
+
+        </div>
+
+        <div class="actividad-box">
+
+            <h3>Mi Actividad Reciente</h3>
+
+            <canvas id="actividadChart"></canvas>
+
+        </div>
+
+    </div>
+
+    <script>
+
+        /* SEGURIDAD */
+
+
+        async function applySecurity() {
+
+            const userData = JSON.parse(localStorage.getItem('usuario_actual'))
+
+            if (!userData || userData.rol !== 'Empleado') {
+
+                window.location.href = "../index.html"
+                return
+
+            }
+
+            document.getElementById('user-info').innerText =
+                `${userData.nombre} (Empleado)`
+
+            try {
+                const response = await fetch('../backend/dashboard.php');
+                const result = await response.json();
+
+                if (result.success) {
+                    document.querySelector('.cards').innerHTML = `
+        <div class="card">
+            <h3>🛒 Solicitudes Pendientes</h3>
+            <p>${result.metrics.pendientes}</p>
+        </div>
+        <div class="card">
+            <h3>📦 Total Productos</h3>
+            <p>${result.metrics.productos}</p>
+        </div>
+        <div class="card">
+            <h3>✅ Total Solicitudes</h3>
+            <p>$${result.metrics.ventas}</p>
+        </div>
+        `;
+
+                    // Actualizar datos del gráfico si existe
+                    const ctx = document.getElementById('actividadChart')
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: ['1', '2', '3', '4', '5'],
+                            datasets: [{
+                                label: 'Últimas Solicitudes (Total $)',
+                                data: result.ultimos ? result.ultimos.map(u => u.total) : [0, 0, 0, 0, 0],
+                                borderColor: '#004080',
+                                fill: false,
+                                tension: 0.3
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false
+                        }
+                    })
+                }
+            } catch (e) {
+                console.error("Error cargando dashboard empleado", e);
+            }
+
+        }
+
+        /* LOGOUT */
+
+        document.getElementById('logout-btn').addEventListener('click', function (e) {
+
+            e.preventDefault()
+
+            localStorage.removeItem('usuario_actual')
+
+            window.location.href = "../index.html"
+
+        })
+
+        window.onload = applySecurity
+
+    </script>
+
+</body>
+
+</html>

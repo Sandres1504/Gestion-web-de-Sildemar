@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Historial de Clientes - Sildemar</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet"
+href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+
+<div class="sidebar" id="sidebar">
+    <h2>SILDEMAR</h2>
+    <a href="dashboard.html"><i class="fas fa-home"></i> Inicio</a>
+    <a href="gestion_usuarios.html"><i class="fas fa-user-plus"></i> Crear Usuarios</a>
+    <a href="inventario.html"><i class="fas fa-boxes"></i> Inventario</a>
+    <a href="solicitudes.html"><i class="fas fa-shopping-cart"></i> Solicitudes</a>
+    <a href="Historial_clientes.html" style="background:#004080;color:white;">
+        <i class="fas fa-users"></i> Historial Clientes
+    </a>
+    <a href="reportes.html"><i class="fas fa-file-pdf"></i> Reportes</a>
+    <a href="../index.html" class="btn-logout" id="logout-btn">
+        <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+    </a>
+</div>
+
+<div class="main-content">
+<header>
+    <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
+    <h1>Historial de Clientes</h1>
+    <div style="color:#004080;font-weight:bold;">
+        <i class="fas fa-user-circle"></i>
+        <span id="user-role-display">Cargando...</span>
+    </div>
+</header>
+
+<main>
+<div class="dashboard-section">
+<h3><i class="fas fa-search"></i> Buscar Cliente</h3>
+<div style="display:flex;gap:10px;flex-wrap:wrap;">
+    <input id="buscarNombre" placeholder="Nombre o Cédula"
+        style="padding:10px;flex:1;min-width:180px;">
+    <input id="buscarTelefono" placeholder="Teléfono"
+        style="padding:10px;flex:1;min-width:150px;">
+    <button onclick="buscarClientes()"
+            style="background:#004080;color:white;padding:10px 20px;border:none;border-radius:6px;cursor:pointer;">
+        🔎 Buscar
+    </button>
+    <button onclick="limpiarPantalla()"
+            style="background:#999;color:white;padding:10px 20px;border:none;border-radius:6px;cursor:pointer;">
+        Limpiar
+    </button>
+</div>
+</div>
+
+<div class="dashboard-section">
+<h3><i class="fas fa-users"></i> Clientes Registrados</h3>
+<table style="width:100%;border-collapse:collapse;">
+<thead style="background:#004080;color:white;">
+<tr>
+<th>Nombre</th>
+<th>Teléfono</th>
+<th>Correo</th>
+<th>Dirección</th>
+<th>Acciones</th>
+</tr>
+</thead>
+<tbody id="tabla-clientes">
+<tr><td colspan="5" style="text-align:center;padding:20px;">Cargando clientes...</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="dashboard-section">
+<h3><i class="fas fa-star"></i> Clientes Frecuentes</h3>
+<table style="width:100%;border-collapse:collapse;">
+<thead style="background:#004080;color:white;">
+<tr>
+<th>Nombre</th>
+<th>Pedidos</th>
+<th>Total Comprado</th>
+</tr>
+</thead>
+<tbody id="tabla-frecuentes">
+<tr><td colspan="3" style="text-align:center;padding:20px;">Cargando...</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="dashboard-section">
+<h3><i class="fas fa-chart-bar"></i> Ventas por Marca de Carro</h3>
+<div style="height:400px; position: relative;">
+<canvas id="graficoCarros"></canvas>
+</div>
+</div>
+</main>
+</div>
+
+<div id="modal-detalles"
+    style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+            background:rgba(0,0,0,0.5);justify-content:center;align-items:center;z-index:999;">
+<div style="background:white;padding:25px;border-radius:10px;
+            width:90%;max-width:900px;max-height:85vh;overflow:auto;">
+<h2>Historial de Solicitudes</h2>
+<table style="width:100%;border-collapse:collapse;">
+<thead style="background:#004080;color:white;">
+<tr>
+<th>Fecha</th>
+<th>Producto</th>
+<th>Carro</th>
+<th>Cant.</th>
+<th>Total</th>
+<th>Estado</th>
+</tr>
+</thead>
+<tbody id="tabla-solicitudes"></tbody>
+</table>
+<div style="text-align:right;margin-top:15px;">
+<button onclick="cerrarModal()"
+style="padding:10px 20px;background:#e74c3c;color:white;border:none;border-radius:6px;cursor:pointer;">
+Cerrar
+</button>
+</div>
+</div>
+</div>
+
+<script>
+let chart;
+
+function applySecurity(){
+    const user = JSON.parse(localStorage.getItem('usuario_actual'));
+    if(!user || user.rol !== 'Administrador'){
+        window.location.href="../index.html";
+        return;
+    }
+    document.getElementById('user-role-display').innerText = `${user.nombre || 'Admin'} (${user.rol})`;
+    
+    // Ejecutar cargas iniciales
+    cargarClientes();
+    cargarFrecuentes();
+    cargarEstadisticasCarros();
+}
+
+async function cargarClientes(busqueda = ''){
+    const res = await fetch(`../backend/clientes_estadisticas.php?action=listar&buscar=${busqueda}`);
+    const data = await res.json();
+    const tabla = document.getElementById("tabla-clientes");
+    
+    if(data.length === 0){
+        tabla.innerHTML = "<tr><td colspan='5' style='text-align:center;'>No se encontraron clientes</td></tr>";
+        return;
+    }
+
+    tabla.innerHTML = data.map(c => `
+        <tr>
+            <td>${c.nombre}</td>
+            <td>${c.telefono}</td>
+            <td>${c.correo || 'N/A'}</td>
+            <td>${c.direccion}</td>
+            <td>
+                <button onclick="verDetalles(${c.id_cliente})"
+                style="background:#004080;color:white;padding:6px 12px;border:none;border-radius:6px;cursor:pointer;">
+                Ver
+                </button>
+            </td>
+        </tr>`).join("");
+}
+
+function buscarClientes(){
+    const nom = document.getElementById("buscarNombre").value;
+    cargarClientes(nom);
+}
+
+function limpiarPantalla(){
+    document.getElementById("buscarNombre").value = "";
+    document.getElementById("buscarTelefono").value = "";
+    cargarClientes();
+}
+
+async function cargarFrecuentes(){
+    const res = await fetch("../backend/clientes_estadisticas.php?action=frecuentes");
+    const data = await res.json();
+    const tabla = document.getElementById("tabla-frecuentes");
+
+    tabla.innerHTML = data.map(c => `
+        <tr>
+            <td>${c.nombre}</td>
+            <td>${c.pedidos}</td>
+            <td>$${parseFloat(c.total_gastado || 0).toFixed(2)}</td>
+        </tr>`).join("");
+}
+
+async function cargarEstadisticasCarros(){
+    const res = await fetch("../backend/clientes_estadisticas.php?action=carros");
+    const data = await res.json();
+    const labels = data.map(d => d.marca_carro || "N/A");
+    const valores = data.map(d => d.ingresos);
+
+    if(chart) chart.destroy();
+    chart = new Chart(document.getElementById("graficoCarros"), {
+        type: "bar",
+        data: {
+            labels: labels,
+            datasets: [{
+                label: "Ingresos ($)",
+                data: valores,
+                backgroundColor: "#004080"
+            }]
+        },
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false 
+        }
+    });
+}
+
+async function verDetalles(id){
+    document.getElementById("modal-detalles").style.display = "flex";
+    const res = await fetch(`../backend/clientes_estadisticas.php?action=detalles&id=${id}`);
+    const data = await res.json();
+    const tabla = document.getElementById("tabla-solicitudes");
+
+    if(data.length === 0){
+        tabla.innerHTML = "<tr><td colspan='6' style='text-align:center;'>Sin historial</td></tr>";
+        return;
+    }
+
+    tabla.innerHTML = data.map(s => `
+        <tr>
+            <td>${s.fecha_solicitud}</td>
+            <td>${s.producto}</td>
+            <td>${s.carro}</td>
+            <td>${s.cantidad}</td>
+            <td>$${parseFloat(s.total).toFixed(2)}</td>
+            <td>${s.estado}</td>
+        </tr>`).join("");
+}
+
+function cerrarModal(){ document.getElementById("modal-detalles").style.display = "none"; }
+function toggleSidebar(){ document.getElementById("sidebar").classList.toggle("active"); }
+
+document.getElementById('logout-btn').onclick = e => {
+    e.preventDefault();
+    localStorage.removeItem('usuario_actual');
+    window.location.href="../index.html";
+};
+
+window.onload = applySecurity;
+</script>
+</body>
+</html>

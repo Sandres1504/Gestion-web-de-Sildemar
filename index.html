@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Sildemar - Acceso</title>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<style>
+body {
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+    background: #003366;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.login-card {
+    background: white;
+    padding: 40px;
+    border-radius: 15px;
+    width: 350px;
+    text-align: center;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+}
+
+h1 { color: #004080; margin: 0; }
+
+input {
+    width: 100%;
+    padding: 12px;
+    margin: 10px 0;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-sizing: border-box;
+}
+
+.btn-login {
+    width: 100%;
+    padding: 12px;
+    background: #004080;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.forgot {
+    display: block;
+    margin-top: 15px;
+    color: #004080;
+    text-decoration: none;
+    font-size: 13px;
+    cursor: pointer;
+}
+</style>
+
+</head>
+<body>
+
+<div class="login-card">
+
+<h1>SILDEMAR</h1>
+<p>Panel Administrativo</p>
+
+<form id="login-form">
+<input type="email" id="email" placeholder="Correo Institucional" required>
+<input type="password" id="clave" placeholder="Clave de Acceso" required>
+<button type="submit" class="btn-login">ENTRAR</button>
+</form>
+
+<a class="forgot" onclick="solicitarReset()">¿Olvidó su clave?</a>
+
+</div>
+
+<script>
+async function solicitarReset() {
+    const { value: email } = await Swal.fire({
+        title: 'Recuperar Contraseña',
+        input: 'email',
+        inputLabel: 'Ingresa tu correo institucional',
+        inputPlaceholder: 'ejemplo@sildemar.com',
+        showCancelButton: true,
+        confirmButtonText: 'Enviar código',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (!email) return;
+
+    Swal.fire({ title: 'Enviando...', allowOutsideClick: false });
+    Swal.showLoading();
+
+    try {
+        const res = await fetch('backend/recuperar.php?action=generate_code', {
+            method: 'POST',
+            body: JSON.stringify({ correo: email })
+        });
+        const data = await res.json();
+
+        if (!data.success) {
+            Swal.fire('Error', data.message || 'No se pudo enviar el correo', 'error');
+            return;
+        }
+
+        // Paso 2: Pedir el código
+        const { value: codigo } = await Swal.fire({
+            title: 'Ingresa el código',
+            input: 'text',
+            inputLabel: 'Enviamos un código de 6 dígitos a tu correo',
+            inputPlaceholder: '000000',
+            showCancelButton: true,
+            confirmButtonText: 'Verificar'
+        });
+
+        if (!codigo) return;
+        
+        Swal.fire({ title: 'Verificando...', allowOutsideClick: false });
+        Swal.showLoading();
+
+        const res2 = await fetch('backend/recuperar.php?action=verify_code', {
+            method: 'POST',
+            body: JSON.stringify({ correo: email, codigo: codigo })
+        });
+        const data2 = await res2.json();
+
+        if (!data2.success) {
+            Swal.fire('Error', data2.message, 'error');
+            return;
+        }
+
+        // Paso 3: Nueva clave
+        const { value: nuevaClave } = await Swal.fire({
+            title: 'Nueva Contraseña',
+            input: 'password',
+            inputLabel: 'Escribe tu nueva contraseña segura',
+            showCancelButton: true,
+            confirmButtonText: 'Cambiar',
+            inputValidator: (value) => {
+                if (!value || value.length < 6) return "Debe tener al menos 6 caracteres";
+            }
+        });
+
+        if (!nuevaClave) return;
+        
+        Swal.fire({ title: 'Actualizando...', allowOutsideClick: false });
+        Swal.showLoading();
+
+        const res3 = await fetch('backend/recuperar.php?action=reset_password', {
+            method: 'POST',
+            body: JSON.stringify({ correo: email, codigo: codigo, clave: nuevaClave })
+        });
+        const data3 = await res3.json();
+
+        if (data3.success) {
+            Swal.fire('¡Éxito!', 'Tu contraseña ha sido actualizada.', 'success');
+        } else {
+            Swal.fire('Error', data3.message || 'Ocurrió un problema', 'error');
+        }
+
+    } catch (error) {
+        Swal.fire('Error de red', 'No se pudo conectar con el servidor.', 'error');
+    }
+}
+
+document.getElementById("login-form").onsubmit = async function(e) {
+
+e.preventDefault()
+
+const formData = new FormData()
+formData.append('correo', document.getElementById("email").value)
+formData.append('clave', document.getElementById("clave").value)
+
+try {
+
+const response = await fetch(
+'backend/login.php',
+{
+method: 'POST',
+body: formData
+})
+
+const result = await response.json()
+
+if (result.success) {
+
+localStorage.setItem('usuario_actual', JSON.stringify(result))
+
+if (result.rol === "Administrador") {
+
+window.location.href =
+'Admin/dashboard.html'
+
+}
+else if (result.rol === "Empleado") {
+
+window.location.href =
+'Empleado/empleado.html'
+
+}
+
+}
+else {
+
+alert(result.message)
+
+}
+
+}
+catch (error) {
+
+alert("No se pudo conectar con el servidor")
+
+}
+
+}
+</script>
+
+</body>
+</html>

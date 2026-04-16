@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reportes - Sildemar</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <!-- Librería para exportar reportes a Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+
+<body>
+
+   <div class="sidebar" id="sidebar">
+    <h2>SILDEMAR</h2>
+
+    <a href="dashboard.html">
+        <i class="fas fa-home"></i> Inicio
+    </a>
+
+    <a href="gestion_usuarios.html">
+        <i class="fas fa-user-plus"></i> Crear Usuarios
+    </a>
+
+    <a href="inventario.html">
+        <i class="fas fa-boxes"></i> Inventario
+    </a>
+
+    <a href="solicitudes.html">
+        <i class="fas fa-shopping-cart"></i> Solicitudes
+    </a>
+
+    <!-- 🔥 NUEVA OPCIÓN -->
+    <a href="Historial_clientes.html">
+        <i class="fas fa-users"></i> Historial Clientes
+    </a>
+
+    <a href="reportes.html">
+        <i class="fas fa-file-pdf"></i> Reportes
+    </a>
+
+    <a href="../index.html" class="btn-logout" id="logout-btn">
+        <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+    </a>
+</div>
+
+    <div class="main-content">
+        <header>
+            <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
+            <h1>Informes y Estadísticas</h1>
+        </header>
+
+        <!-- Tarjetas de Resumen Real -->
+        <div class="cards">
+            <div class="card">
+                <i class="fas fa-exclamation-triangle"></i>
+                Stock Crítico (< 5) <span class="card-value" id="stock-critico">Cargando...</span>
+            </div>
+            <div class="card">
+                <i class="fas fa-money-bill-wave"></i>
+                Valor de Inventario
+                <span class="card-value" id="valor-inventario">Cargando...</span>
+            </div>
+            <div class="card">
+                <i class="fas fa-box"></i>
+                Total Productos
+                <span class="card-value" id="total-productos">Cargando...</span>
+            </div>
+        </div>
+
+        <div class="report-box">
+            <h3><i class="fas fa-filter"></i> Generar Informes Detallados</h3>
+            <div class="report-controls">
+                <div class="filter-group">
+                    <div class="filter-item">
+                        <label>Tipo de Reporte</label>
+                        <select id="tipo_reporte">
+                            <option value="inventario">Inventario Completo</option>
+                            <option value="bajo-stock">Solo Bajo Stock</option>
+                            <option value="movimientos" disabled>Movimientos (Próximamente)</option>
+                        </select>
+                    </div>
+                    <div class="filter-item">
+                        <label>Marca (Opcional)</label>
+                        <input type="text" id="filtro_marca" placeholder="Ej: Toyota">
+                    </div>
+                </div>
+                <button class="btn-export" style="background: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; margin-right: 10px;" onclick="generarReporte()">
+                    <i class="fas fa-search"></i> Consultar
+                </button>
+                <button class="btn-green btn-export" onclick="exportarExcel()">
+                    <i class="fas fa-file-excel"></i> Exportar
+                </button>
+            </div>
+
+            <div id="reporte-resultados">
+                <table id="tabla-reporte">
+                    <thead>
+                        <tr id="headers-reporte">
+                            <th>Producto</th>
+                            <th>Marca</th>
+                            <th>Stock</th>
+                            <th>Precio Unit.</th>
+                            <th>Valor Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="body-reporte">
+                        <tr>
+                            <td colspan="5" style="text-align:center;">Haga clic en consultar para cargar datos</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleSidebar() { document.getElementById("sidebar").classList.toggle("active"); }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            applySecurity();
+            cargarEstadisticas();
+            generarReporte(); // Carga inicial
+        });
+
+        // Seguridad de roles
+        function applySecurity() {
+            const userData = JSON.parse(localStorage.getItem('usuario_actual'));
+            if (!userData) { window.location.href = "../index.html"; return; }
+            // Quitamos la restricción visual
+            const nav = document.getElementById('nav-usuarios');
+            if (nav) nav.style.display = 'block';
+        }
+
+        // Carga las 3 tarjetas superiores desde el backend
+        async function cargarEstadisticas() {
+            try {
+                const response = await fetch('../backend/get_reportes.php?action=stats');
+                const data = await response.json();
+
+                document.getElementById('stock-critico').innerText = data.critico + " items";
+                document.getElementById('valor-inventario').innerText = "$" + data.valor_inventario;
+                document.getElementById('total-productos').innerText = data.total_productos + " SKU";
+            } catch (e) {
+                console.error("Error cargando estadísticas", e);
+            }
+        }
+
+        // Genera la tabla de reporte filtrada
+        async function generarReporte() {
+            const tipo = document.getElementById('tipo_reporte').value;
+            const marca = document.getElementById('filtro_marca').value.toLowerCase();
+            const body = document.getElementById('body-reporte');
+
+            body.innerHTML = "<tr><td colspan='5' style='text-align:center;'>Cargando datos...</td></tr>";
+
+            try {
+                const response = await fetch(`../backend/get_reportes.php?action=filter&tipo=${tipo}`);
+                const data = await response.json();
+
+                body.innerHTML = "";
+                let filtrados = data;
+
+                // Filtro manual de marca si el usuario escribió algo
+                if (marca) {
+                    filtrados = data.filter(p => p.marca.toLowerCase().includes(marca));
+                }
+
+                if (filtrados.length === 0) {
+                    body.innerHTML = "<tr><td colspan='5' style='text-align:center;'>No se encontraron resultados</td></tr>";
+                    return;
+                }
+
+                filtrados.forEach(p => {
+                    const stock = parseInt(p.stock_actual);
+                    const precio = parseFloat(p.precio);
+                    const stockClass = stock < 5 ? 'badge-low' : '';
+
+                    body.innerHTML += `
+                <tr>
+                    <td>${p.nombre_producto}</td>
+                    <td>${p.marca}</td>
+                    <td class="${stockClass}">${stock} uds</td>
+                    <td>$${precio.toFixed(2)}</td>
+                    <td>$${(stock * precio).toFixed(2)}</td>
+                </tr>
+            `;
+                });
+            } catch (e) {
+                body.innerHTML = "<tr><td colspan='5' style='text-align:center; color:red;'>Error al conectar con el servidor</td></tr>";
+            }
+        }
+
+        function exportarExcel() {
+            const tbody = document.getElementById('body-reporte');
+            // Validar que la tabla de verdad tenga contenido y no un mensaje de carga
+            if (tbody.innerText.includes("Cargando") || tbody.innerText.includes("Haga clic") || tbody.innerText.includes("No se encontraron")) {
+                alert("No hay datos válidos para exportar en estos momentos.");
+                return;
+            }
+
+            const tabla = document.getElementById('tabla-reporte');
+            
+            // Transformar la tabla entera a un formato de Libro de Excel
+            const wb = XLSX.utils.table_to_book(tabla, { sheet: "Inventario" });
+            
+            // Obtener tipo de vista para nombrarlo (ej. inventario / bajo-stock)
+            const tipo = document.getElementById('tipo_reporte').value;
+            const fecha = new Date().toISOString().split('T')[0];
+            
+            XLSX.writeFile(wb, `Reportes_${tipo}_${fecha}.xlsx`);
+        }
+
+        // Logout
+        document.getElementById('logout-btn').onclick = (e) => {
+            e.preventDefault();
+            localStorage.removeItem('usuario_actual');
+            window.location.href = "../index.html";
+        };
+    </script>
+
+</body>
+
+</html>

@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inventario - Sildemar</title>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+
+</head>
+
+<body>
+
+    <div class="sidebar" id="sidebar">
+    <h2>SILDEMAR</h2>
+
+    <a href="dashboard.html">
+        <i class="fas fa-home"></i> Inicio
+    </a>
+
+    <a href="gestion_usuarios.html">
+        <i class="fas fa-user-plus"></i> Crear Usuarios
+    </a>
+
+    <a href="inventario.html">
+        <i class="fas fa-boxes"></i> Inventario
+    </a>
+
+    <a href="solicitudes.html">
+        <i class="fas fa-shopping-cart"></i> Solicitudes
+    </a>
+
+    <a href="Historial_clientes.html">
+        <i class="fas fa-users"></i> Historial Clientes
+    </a>
+
+    <a href="reportes.html">
+        <i class="fas fa-file-pdf"></i> Reportes
+    </a>
+
+    <a href="../index.html" class="btn-logout" id="logout-btn">
+        <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+    </a>
+</div>
+
+  <div id="modalEliminar" class="modal">
+    <div class="modal-box" style="background: white; color: #333;">
+
+      <h2>Eliminar producto</h2>
+      <p>¿Seguro que deseas eliminar este producto?</p>
+
+      <div class="modal-buttons">
+        <button id="btnConfirmarEliminar" class="btn-danger">
+          Eliminar
+        </button>
+
+        <button id="btnCancelarEliminar" class="btn-secondary">
+          Cancelar
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal Editar Producto -->
+  <div id="modalEditar" class="modal">
+    <div class="modal-box" style="background: white; color: #333;">
+      <h2>Editar Producto</h2>
+      <form id="form-editar">
+        <input type="hidden" id="edit_id">
+        
+        <label style="display:block; text-align:left; font-size:14px; margin-bottom:5px;">Nombre:</label>
+        <input type="text" id="edit_nombre" required>
+        
+        <label style="display:block; text-align:left; font-size:14px; margin-bottom:5px;">Marca Repuesto:</label>
+        <input type="text" id="edit_marca_repuesto" required>
+        
+        <label style="display:block; text-align:left; font-size:14px; margin-bottom:5px;">Marca Vehículo:</label>
+        <input type="text" id="edit_marca_carro" required>
+        
+        <label style="display:block; text-align:left; font-size:14px; margin-bottom:5px;">Transmisión:</label>
+        <select id="edit_transmision">
+          <option value="No aplica">Transmisión (N/A)</option>
+          <option value="Automática">Automática</option>
+          <option value="Sincrónica">Sincrónica</option>
+        </select>
+        
+        <label style="display:block; text-align:left; font-size:14px; margin-bottom:5px;">Monto de Compra $</label>
+        <input type="number" id="edit_compra" step="0.01" required>
+        
+        <label style="display:block; text-align:left; font-size:14px; margin-bottom:5px;">Precio de Venta $</label>
+        <input type="number" id="edit_precio" step="0.01" required>
+        
+        <div class="modal-buttons" style="margin-top: 15px;">
+          <button type="submit" class="btn-add">Guardar</button>
+          <button type="button" class="btn-secondary" onclick="cerrarModalEditar()">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Añadir Stock -->
+  <div id="modalStock" class="modal">
+    <div class="modal-box" style="background: white; color: #333;">
+      <h2>Añadir Stock</h2>
+      <form id="form-stock">
+        <p style="margin-bottom:15px; font-size:14px;">Añadiendo stock al producto <br><strong id="stock_nombre_prod"></strong></p>
+        <input type="hidden" id="stock_id">
+        <label style="display:block; text-align:left; font-size:14px; margin-bottom:5px;">Cantidad a agregar:</label>
+        <input type="number" id="stock_cantidad" min="1" required placeholder="Ej. 10">
+        
+        <div class="modal-buttons" style="margin-top: 15px;">
+          <button type="submit" class="btn-add">Añadir</button>
+          <button type="button" class="btn-secondary" onclick="cerrarModalStock()">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="main-content">
+
+    <header>
+      <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
+      <h1>📦 Control de Inventario</h1>
+    </header>
+
+    <div class="content-box">
+
+      <h3>Añadir Nuevo Repuesto</h3>
+
+      <form class="form-inventario" id="form-producto">
+
+        <input type="text" id="codigo" placeholder="Código del Repuesto" required>
+
+        <input type="text" id="nombre" placeholder="Nombre del Repuesto" required>
+
+        <input type="text" id="marca_repuesto" placeholder="Marca del Repuesto (Bosch, NGK, Valeo)" required>
+
+        <input type="text" id="marca_carro" placeholder="Marca del Vehículo (Toyota, Ford)" required>
+
+        <select id="transmision">
+          <option value="No aplica">Transmisión (N/A)</option>
+          <option value="Automática">Automática</option>
+          <option value="Sincrónica">Sincrónica</option>
+        </select>
+
+        <input type="number" id="stock" placeholder="Cantidad inicial" required>
+
+        <input type="number" id="precio" step="0.01" placeholder="Precio de Venta $" required>
+
+        <input type="number" id="compra" step="0.01" placeholder="Monto de Compra $" required>
+
+        <label style="display:block; text-align:left; font-size:14px; margin-bottom:5px; margin-top:10px; color:#ccc;">Imagen del Producto (Opcional)</label>
+        <input type="file" id="imagen" accept="image/*" style="margin-bottom: 15px;">
+
+        <button type="submit" class="btn-add">➕ Guardar</button>
+
+      </form>
+
+      <hr>
+
+      <h3>Filtros y Consulta</h3>
+
+      <div style="display:flex; gap:10px; margin-bottom:15px;">
+
+        <input type="text" id="barra-busqueda" placeholder="Buscar por nombre o marca..." onkeyup="filtrarTabla()"
+          style="padding:10px; flex:1; border-radius:4px; border:1px solid #ccc;">
+
+        <select id="selector-filtro" onchange="filtrarTabla()"
+          style="padding:10px; border-radius:4px; border:1px solid #ccc;">
+
+          <option value="todos">Todos los Productos</option>
+          <option value="bajo-stock">Bajo Stock (Menos de 5)</option>
+
+        </select>
+
+      </div>
+
+      <table>
+
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Producto</th>
+            <th>Marca Repuesto</th>
+            <th>Marca Vehículo</th>
+            <th>Transmisión</th>
+            <th>Stock</th>
+            <th>Compra</th>
+            <th>Venta</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+
+        <tbody id="tabla-body">
+          <tr>
+            <td colspan="6" style="text-align:center;">Cargando información del servidor...</td>
+          </tr>
+        </tbody>
+
+      </table>
+
+    </div>
+
+  </div>
+
+  <script>
+
+    function toggleSidebar() {
+      document.getElementById("sidebar").classList.toggle("active");
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      applySecurity();
+      cargarInventario();
+    });
+
+
+    function applySecurity() {
+
+      const userData = JSON.parse(localStorage.getItem('usuario_actual'));
+
+      if (!userData) {
+        window.location.href = "../index.html";
+        return;
+      }
+
+    }
+
+
+    async function cargarInventario() {
+
+      try {
+
+        const response = await fetch('../backend/inventario.php?action=list');
+
+        const productos = await response.json();
+        
+        window.productosGlobal = productos;
+
+        const tbody = document.getElementById('tabla-body');
+
+        tbody.innerHTML = "";
+
+        if (productos.length === 0) {
+
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No hay registros en la base de datos.</td></tr>';
+
+          return;
+
+        }
+
+        productos.forEach(p => {
+
+          const stockVal = parseInt(p.stock_actual);
+
+          const stockClass = stockVal < 5 ? 'stock-alert' : 'stock-ok';
+
+          const codigoVal = p.codigo ? p.codigo : `PROD-${p.id_producto}`;
+
+          tbody.innerHTML += `
+<tr data-nombre="${p.nombre_producto.toLowerCase()} ${p.marca_repuesto.toLowerCase()} ${p.marca_carro.toLowerCase()} ${codigoVal.toLowerCase()}" data-stock="${stockVal}">
+
+<td>${codigoVal}</td>
+
+<td><strong>${p.nombre_producto}</strong></td>
+
+<td>${p.marca_repuesto}</td>
+
+<td>${p.marca_carro}</td>
+
+<td>${p.transmision}</td>
+
+<td>${stockVal}</td>
+
+<td>$${parseFloat(p.compra).toFixed(2)}</td>
+
+<td>$${parseFloat(p.precio).toFixed(2)}</td>
+
+<td>
+<button class="btn-edit btn-action" onclick="abrirModalEditar(${p.id_producto})" title="Editar"><i class="fas fa-edit"></i></button>
+<button class="btn-action" style="color: #28a745;" onclick="abrirModalStock(${p.id_producto})" title="Añadir Stock"><i class="fas fa-plus-circle"></i></button>
+<button class="btn-delete btn-action" onclick="eliminarProducto(${p.id_producto})" title="Eliminar"><i class="fas fa-trash"></i></button>
+</td>
+
+</tr>
+`;
+        });
+
+      } catch (error) {
+
+        console.error(error);
+
+        document.getElementById('tabla-body').innerHTML =
+          '<tr><td colspan="6" style="text-align:center; color:red;">Error al conectar con backend</td></tr>';
+
+      }
+
+    }
+
+
+
+    document.getElementById('form-producto').onsubmit = async (e) => {
+
+      e.preventDefault();
+
+      const formData = new FormData();
+      formData.append('codigo', document.getElementById('codigo').value);
+      formData.append('nombre', document.getElementById('nombre').value);
+      formData.append('marca_repuesto', document.getElementById('marca_repuesto').value);
+      formData.append('marca_carro', document.getElementById('marca_carro').value);
+      formData.append('transmision', document.getElementById('transmision').value);
+      formData.append('stock', document.getElementById('stock').value);
+      formData.append('compra', document.getElementById('compra').value);
+      formData.append('precio', document.getElementById('precio').value);
+
+      const imagenInput = document.getElementById('imagen');
+      if (imagenInput.files.length > 0) {
+        formData.append('imagen', imagenInput.files[0]);
+      }
+
+      try {
+
+        const response = await fetch('../backend/inventario.php?action=create', {
+          method: 'POST',
+          body: formData
+        });
+
+        const res = await response.json();
+
+        if (res.success) {
+
+          alert("Registrado con éxito");
+
+          e.target.reset();
+
+          cargarInventario();
+
+        } else {
+
+          alert("Error: " + res.message);
+
+        }
+
+      } catch(error) {
+
+        alert("Error de comunicación con el servidor");
+        console.error(error);
+
+      }
+
+    };
+
+    function eliminarProducto(id) {
+      abrirModalEliminar(id);
+    }
+
+
+
+    function filtrarTabla() {
+
+      const busqueda = document.getElementById('barra-busqueda').value.toLowerCase();
+
+      const filtroStock = document.getElementById('selector-filtro').value;
+
+      const filas = document.querySelectorAll('#tabla-body tr');
+
+      filas.forEach(fila => {
+
+        const info = fila.getAttribute('data-nombre') || "";
+
+        const stock = parseInt(fila.getAttribute('data-stock')) || 0;
+
+        const coincideBusqueda = info.includes(busqueda);
+
+        const coincideStock = (filtroStock === 'todos') || (filtroStock === 'bajo-stock' && stock < 5);
+
+        fila.style.display = (coincideBusqueda && coincideStock) ? '' : 'none';
+
+      });
+
+    }
+
+
+
+    document.getElementById('logout-btn').onclick = (e) => {
+
+      e.preventDefault();
+
+      localStorage.removeItem('usuario_actual');
+
+      window.location.href = "../index.html";
+
+    };
+
+    let productoEliminar = null;
+
+    function abrirModalEliminar(id) {
+
+      productoEliminar = id;
+
+      document.getElementById("modalEliminar").style.display = "flex";
+
+    }
+
+    function cerrarModalEliminar() {
+
+      document.getElementById("modalEliminar").style.display = "none";
+
+    }
+    document.getElementById("btnCancelarEliminar")
+      .onclick = cerrarModalEliminar;
+
+
+    document.getElementById("btnConfirmarEliminar")
+      .onclick = function () {
+
+        fetch(`../backend/inventario.php?action=delete&id=${productoEliminar}`)
+          .then(r => r.json())
+          .then(data => {
+
+            if (data.success) {
+
+              cerrarModalEliminar();
+              cargarInventario();
+
+            }
+
+          });
+
+      }
+
+    /* Funciones para Editar Producto */
+    function abrirModalEditar(id) {
+      const p = window.productosGlobal.find(x => x.id_producto == id);
+      if (!p) return;
+      document.getElementById('edit_id').value = p.id_producto;
+      document.getElementById('edit_nombre').value = p.nombre_producto;
+      document.getElementById('edit_marca_repuesto').value = p.marca_repuesto;
+      document.getElementById('edit_marca_carro').value = p.marca_carro;
+      document.getElementById('edit_transmision').value = p.transmision;
+      document.getElementById('edit_compra').value = p.compra;
+      document.getElementById('edit_precio').value = p.precio;
+      
+      document.getElementById("modalEditar").style.display = "flex";
+    }
+
+    function cerrarModalEditar() {
+      document.getElementById("modalEditar").style.display = "none";
+    }
+
+    document.getElementById('form-editar').onsubmit = async (e) => {
+      e.preventDefault();
+      const datos = {
+        id_producto: document.getElementById('edit_id').value,
+        nombre: document.getElementById('edit_nombre').value,
+        marca_repuesto: document.getElementById('edit_marca_repuesto').value,
+        marca_carro: document.getElementById('edit_marca_carro').value,
+        transmision: document.getElementById('edit_transmision').value,
+        compra: document.getElementById('edit_compra').value,
+        precio: document.getElementById('edit_precio').value
+      };
+
+      try {
+        const response = await fetch('../backend/inventario.php?action=update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(datos)
+        });
+        const res = await response.json();
+        if (res.success) {
+          alert("Producto actualizado con éxito");
+          cerrarModalEditar();
+          cargarInventario();
+        } else {
+          alert("Error: " + res.message);
+        }
+      } catch(error) {
+        alert("Error de comunicación con el servidor");
+      }
+    };
+
+    /* Funciones para Añadir Stock */
+    function abrirModalStock(id) {
+      const p = window.productosGlobal.find(x => x.id_producto == id);
+      if (!p) return;
+      document.getElementById('stock_id').value = p.id_producto;
+      document.getElementById('stock_nombre_prod').innerText = p.nombre_producto + " (" + p.codigo + ")";
+      document.getElementById('stock_cantidad').value = "";
+      
+      document.getElementById("modalStock").style.display = "flex";
+    }
+
+    function cerrarModalStock() {
+      document.getElementById("modalStock").style.display = "none";
+    }
+
+    document.getElementById('form-stock').onsubmit = async (e) => {
+      e.preventDefault();
+      const datos = {
+        id_producto: document.getElementById('stock_id').value,
+        cantidad: document.getElementById('stock_cantidad').value
+      };
+
+      try {
+        const response = await fetch('../backend/inventario.php?action=add_stock', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(datos)
+        });
+        const res = await response.json();
+        if (res.success) {
+          alert("Stock añadido con éxito");
+          cerrarModalStock();
+          cargarInventario();
+        } else {
+          alert("Error: " + res.message);
+        }
+      } catch(error) {
+        alert("Error de comunicación con el servidor");
+      }
+    };
+
+  </script>
+
+</body>
+
+</html>

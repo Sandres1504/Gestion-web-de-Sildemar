@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solicitudes - Sildemar</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+
+<body>
+
+    <div class="sidebar" id="sidebar">
+    <h2>SILDEMAR</h2>
+
+    <a href="dashboard.html">
+        <i class="fas fa-home"></i> Inicio
+    </a>
+
+    <a href="gestion_usuarios.html">
+        <i class="fas fa-user-plus"></i> Crear Usuarios
+    </a>
+
+    <a href="inventario.html">
+        <i class="fas fa-boxes"></i> Inventario
+    </a>
+
+    <a href="solicitudes.html">
+        <i class="fas fa-shopping-cart"></i> Solicitudes
+    </a>
+
+    <a href="Historial_clientes.html">
+        <i class="fas fa-users"></i> Historial Clientes
+    </a>
+
+    <a href="reportes.html">
+        <i class="fas fa-file-pdf"></i> Reportes
+    </a>
+
+    <a href="../index.html" class="btn-logout" id="logout-btn">
+        <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+    </a>
+</div>
+    <div class="main-content">
+        <header>
+            <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
+            <h1>Gestión de Solicitudes</h1>
+        </header>
+
+        <div class="content-box">
+            <h3>🔍 Filtros de Búsqueda</h3>
+            <div class="filter-controls">
+                <input type="text" id="busqueda" placeholder="Buscar por Cliente o ID..." onkeyup="filtrar()">
+                <select id="filtro-estado" onchange="filtrar()">
+                    <option value="todos">Todos los estados</option>
+                    <option value="Pendiente">Pendientes</option>
+                    <option value="Aprobada">Aprobada</option>
+                    <option value="Rechazada">Rechazada</option>
+                    <option value="Entregada">Entregada</option>
+                </select>
+                <button class="btn-export" style="background: #28a745; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer;" onclick="exportarExcel()">
+                    <i class="fas fa-file-download"></i> Exportar
+                </button>
+            </div>
+        </div>
+
+        <div class="content-box">
+            <h3>📋 Listado de Pedidos</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Cliente</th>
+                        <th>Fecha</th>
+                        <th>Estado</th>
+                        <th>Total</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-solicitudes">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Cambiar visibilidad de la barra lateral
+        function toggleSidebar() {
+            const sb = document.getElementById("sidebar");
+            sb.style.left = sb.style.left === "0px" ? "-220px" : "0px";
+        }
+
+        // Cargar datos reales al abrir la página
+        document.addEventListener('DOMContentLoaded', cargarSolicitudes);
+
+        async function cargarSolicitudes() {
+            try {
+                const response = await fetch('../backend/solicitudes.php?action=list');
+                const result = await response.json();
+                const tbody = document.getElementById('tabla-solicitudes');
+                tbody.innerHTML = "";
+
+                if (result.success) {
+                    result.data.forEach(s => {
+                        // Determinar clase de estilo según estado
+                        let claseEstado = s.estado.toLowerCase().replace(" ", "");
+                        if (claseEstado === "aprobada") claseEstado = "proceso";
+                        if (claseEstado === "entregada") claseEstado = "completada";
+
+                        tbody.innerHTML += `
+                            <tr data-cliente="${s.cliente.toLowerCase()}" data-estado="${s.estado}">
+                                <td>#${s.id_solicitud.toString().padStart(4, '0')}</td>
+                                <td>${s.cliente}</td>
+                                <td>${s.fecha.split(' ')[0]}</td>
+                                <td><span class="badge ${claseEstado}">${s.estado}</span></td>
+                                <td>$${s.total}</td>
+                                <td>
+                                    <button class="btn-action" style="color: #17a2b8; font-size: 16px; margin-right:5px;" onclick="verDetalle(${s.id_solicitud}, '${s.cliente}', '${s.total}', '${s.fecha}')" title="Ver Detalles"><i class="fas fa-eye"></i></button>
+                                    ${s.estado === 'Pendiente' ?
+                                    `<button class="btn-action" style="background:#28a745" onclick="actualizarEstado(${s.id_solicitud}, 'Aprobada')">Aprobar</button>
+                                    <button class="btn-action" style="background:#dc3545" onclick="actualizarEstado(${s.id_solicitud}, 'Rechazada')">Rechazar</button>` : ''}
+                                    ${s.estado === 'Aprobada' ?
+                                `<button class="btn-action" style="background:#007bff" onclick="actualizarEstado(${s.id_solicitud}, 'Entregada')">Entregar</button>` : ''}
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+            } catch (error) {
+                console.error("Error cargando solicitudes:", error);
+            }
+        }
+
+        async function verDetalle(id, cliente, total, fecha) {
+            try {
+                const res = await fetch(`../backend/solicitudes.php?action=details&id=${id}`);
+                const data = await res.json();
+                
+                if (data.success) {
+                    let htmlProductos = `<ul style="text-align: left; padding: 0; list-style-type: none;">`;
+                    data.data.forEach(item => {
+                        htmlProductos += `
+                            <li style="margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 8px;">
+                                <strong>${item.nombre_producto}</strong>
+                                <br><span style="color: #666; font-size: 14px;">$${item.precio_unitario} x ${item.cantidad} = <strong>$${item.subtotal}</strong></span>
+                            </li>
+                        `;
+                    });
+                    htmlProductos += `</ul>`;
+                    
+                    Swal.fire({
+                        title: `Detalle del Pedido #${id.toString().padStart(4, '0')}`,
+                        html: `
+                            <div style="text-align:left;">
+                                <p><strong>Cliente:</strong> ${cliente}</p>
+                                <p><strong>Fecha y Hora:</strong> ${fecha}</p>
+                                <p style="margin-top: 15px;"><strong>Productos Solicitados:</strong></p>
+                                <div style="max-height: 200px; overflow-y: auto; background: #f9f9f9; padding: 10px; border-radius: 6px;">
+                                    ${htmlProductos}
+                                </div>
+                                <h3 style="margin-top: 15px; text-align: right; color: #004080;">Total: $${total}</h3>
+                            </div>
+                        `,
+                        icon: 'info',
+                        width: 500,
+                        confirmButtonText: 'Cerrar',
+                        confirmButtonColor: '#004080'
+                    });
+                } else {
+                    Swal.fire('Error', data.message || 'No se pudieron cargar los detalles', 'error');
+                }
+            } catch(e) {
+                console.error(e);
+                Swal.fire('Error', 'Problema al conectar con el servidor', 'error');
+            }
+        }
+
+        async function actualizarEstado(id, nuevoEstado) {
+            Swal.fire({
+                title: '¿Estás seguro?',
+                text: `¿Deseas cambiar el estado a ${nuevoEstado}?`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Sí, cambiar',
+                cancelButtonText: 'Cancelar'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    const res = await fetch(`../backend/solicitudes.php?action=update_status&id=${id}&estado=${nuevoEstado}`);
+                    const data = await res.json();
+                    if (data.success) {
+                        Swal.fire('¡Actualizado!', `La solicitud fue marcada como ${nuevoEstado}`, 'success');
+                        cargarSolicitudes(); // Recargar tabla
+                    }
+                }
+            });
+        }
+
+        function filtrar() {
+            const texto = document.getElementById('busqueda').value.toLowerCase();
+            const estado = document.getElementById('filtro-estado').value;
+            const filas = document.querySelectorAll('#tabla-solicitudes tr');
+
+            filas.forEach(f => {
+                const nombreCliente = f.getAttribute('data-cliente');
+                const estadoFila = f.getAttribute('data-estado');
+
+                const cumpleTexto = nombreCliente.includes(texto);
+                const cumpleEstado = (estado === 'todos' || estado === estadoFila);
+
+                f.style.display = (cumpleTexto && cumpleEstado) ? '' : 'none';
+            });
+        }
+
+        function exportarExcel() {
+            try {
+                // Clonar la tabla original para modificarla sin dañar la vista
+                const tablaOriginal = document.getElementById("tabla-solicitudes");
+                const tablaClone = tablaOriginal.cloneNode(true);
+                
+                // Quitamos la última columna (Acciones) de cada fila (thead y tbody)
+                tablaClone.querySelectorAll("tr").forEach(fila => {
+                    if (fila.style.display === "none") {
+                        fila.remove();
+                    } else if (fila.lastElementChild) {
+                        fila.lastElementChild.remove();
+                    }
+                });
+
+                // Generar el Excel
+                const workbook = XLSX.utils.table_to_book(tablaClone, { sheet: "Solicitudes" });
+                XLSX.writeFile(workbook, "Solicitudes_Sildemar.xlsx");
+                
+                Swal.fire("Exportado", "Únicamente los datos filtrados y visibles han sido exportados correctamente.", "success");
+            } catch (error) {
+                console.error("Error al exportar:", error);
+                Swal.fire("Error", "Ocurrió un error al intentar exportar la tabla a Excel.", "error");
+            }
+        }
+
+        document.getElementById('logout-btn').addEventListener('click', function (e) {
+            e.preventDefault();
+            localStorage.removeItem('usuario_actual');
+            window.location.href = "../index.html";
+        });
+    </script>
+</body>
+
+</html>
