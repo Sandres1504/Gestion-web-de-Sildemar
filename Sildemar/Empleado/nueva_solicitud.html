@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Nueva Solicitud - Sildemar</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <style>
+        .cart-table { width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 10px; }
+        .cart-table th, .cart-table td { border: 1px solid #555; padding: 8px; text-align: left; color: #eee; }
+        .cart-table th { background-color: #333; color: #fff; }
+        .btn-remove { background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+        
+        
+        .select2-container .select2-selection--single { height: 38px !important; background-color: #333 !important; border: 1px solid #555 !important; border-radius: 6px !important; }
+        .select2-container--default .select2-selection--single .select2-selection__rendered { color: #eee !important; line-height: 36px !important; }
+        .select2-dropdown { background-color: #333 !important; border: 1px solid #555 !important; color: #eee !important; }
+    </style>
+</head>
+
+<body>
+    <div class="sidebar">
+        <h2>SILDEMAR</h2>
+        <a href="empleado.html"><i class="fas fa-home"></i> Mi Panel</a>
+        <a href="inventario.html"><i class="fas fa-boxes"></i> Ver Inventario</a>
+        <a href="#"><i class="fas fa-plus-circle"></i> Nueva Solicitud</a>
+        <a href="mis_solicitudes.html"><i class="fas fa-shopping-cart"></i> Mis Solicitudes</a>
+        <a href="#" id="logout-btn" style="margin-top:40px;background:#c0392b;"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
+    </div>
+
+    <div class="main-content">
+        <h2>Nueva Solicitud</h2>
+
+        <form id="solicitud-form">
+            <h3 style="margin-bottom:10px; border-bottom: 1px solid #555; padding-bottom: 5px;">Seleccionar Repuestos</h3>
+            
+            <label>Producto</label>
+            <select id="producto" style="width:100%;">
+                <option value="">Seleccione un repuesto...</option>
+            </select>
+
+            <label style="margin-top: 15px; display: block;">Cantidad</label>
+            <input type="number" id="cantidad" placeholder="Cantidad a añadir" min="1">
+
+            <button type="button" onclick="agregarAlCarrito()" style="background: #28a745; color: white; padding: 12px; margin-top: 15px; margin-bottom: 15px; border: none; border-radius: 6px; width: 100%; cursor: pointer; font-size: 15px; font-weight: bold;">
+                <i class="fas fa-plus"></i> Añadir a la Lista
+            </button>
+
+            <div id="carrito-container" style="display: none;">
+                <table class="cart-table" id="tabla-carrito">
+                    <thead>
+                        <tr>
+                            <th>Repuesto</th>
+                            <th>Cant</th>
+                            <th>Precio U.</th>
+                            <th>Subtotal</th>
+                            <th>Eliminar</th>
+                        </tr>
+                    </thead>
+                    <tbody id="carrito-tbody"></tbody>
+                </table>
+                <div id="carrito-total" style="text-align:right; font-weight:bold; font-size: 18px; margin-bottom: 20px;">Total: $0.00</div>
+            </div>
+
+            <h3 style="margin-bottom:10px; border-bottom: 1px solid #555; padding-bottom: 5px; margin-top: 20px;">Datos del Cliente</h3>
+            
+            <label>Cédula del Cliente</label>
+            <input type="number" id="cedula" placeholder="Ej: 12345678" required>
+
+            <label>Nombre Completo</label>
+            <input type="text" id="cliente" placeholder="Nombre del cliente" required>
+
+            <label>Teléfono</label>
+            <input type="text" id="telefono" placeholder="Ej: 0412-1234567" required>
+
+            <label>Correo Electrónico</label>
+            <input type="email" id="correo" placeholder="ejemplo@correo.com" required>
+
+            <label>Dirección</label>
+            <input type="text" id="direccion" placeholder="Dirección de habitación/negocio" required>
+
+            <button type="submit" style="background: #007bff; color: white; padding: 12px; margin-top: 20px; border: none; border-radius: 6px; width: 100%; cursor: pointer; font-size: 16px; font-weight: bold;">Registrar Solicitud</button>
+        </form>
+    </div>
+
+    <script>
+        let carrito = [];
+
+        // Seguridad
+        function applySecurity() {
+            const userData = JSON.parse(localStorage.getItem('usuario_actual'));
+            if (!userData || userData.rol !== 'Empleado') { window.location.href = "../index.html"; }
+        }
+
+        // Logout
+        document.getElementById('logout-btn').addEventListener('click', e => {
+            e.preventDefault();
+            localStorage.removeItem('usuario_actual');
+            window.location.href = "../index.html";
+        });
+
+        async function cargarProductos() {
+            try {
+                const response = await fetch('../backend/catalogo.php?action=list');
+                const productos = await response.json();
+                const select = document.getElementById('producto');
+                select.innerHTML = '<option value="">Seleccione un repuesto...</option>';
+                productos.forEach(p => {
+                    select.innerHTML += `<option value="${p.id_producto}" data-precio="${p.precio}" data-nombre="${p.nombre_producto}" data-stock="${p.stock_actual}">
+                        ${p.nombre_producto} - $${p.precio} (Stock: ${p.stock_actual})
+                    </option>`;
+                });
+                $('#producto').select2({ placeholder: "Buscar repuesto...", allowClear: true });
+            } catch (e) { console.error("Error productos", e); }
+        }
+
+        function agregarAlCarrito() {
+            const selectProd = document.getElementById('producto');
+            const id_producto = selectProd.value;
+            const cantidad = document.getElementById('cantidad').value;
+
+            if (!id_producto || !cantidad || parseInt(cantidad) <= 0) {
+                Swal.fire('Atención', 'Seleccione un repuesto y una cantidad válida.', 'warning');
+                return;
+            }
+
+            const option = selectProd.options[selectProd.selectedIndex];
+            const precio = option.getAttribute('data-precio');
+            const nombre = option.getAttribute('data-nombre');
+            const stockMax = option.getAttribute('data-stock');
+
+            const cantParseada = parseInt(cantidad);
+            const existeIndex = carrito.findIndex(item => item.id_producto === id_producto);
+
+            let totalAñadido = existeIndex !== -1 ? cantParseada + parseInt(carrito[existeIndex].cant) : cantParseada;
+
+            if (totalAñadido > parseInt(stockMax)) {
+                Swal.fire('Stock Insuficiente', `El stock máximo es ${stockMax}.`, 'warning');
+                return;
+            }
+
+            if (existeIndex !== -1) {
+                carrito[existeIndex].cant = totalAñadido;
+            } else {
+                carrito.push({ id_producto, nombre, cant: cantParseada, precio: parseFloat(precio) });
+            }
+
+            actualizarTablaCarrito();
+            $('#producto').val('').trigger('change');
+            document.getElementById('cantidad').value = '';
+        }
+
+        function actualizarTablaCarrito() {
+            const tbody = document.getElementById('carrito-tbody');
+            const contenedor = document.getElementById('carrito-container');
+            const divTotal = document.getElementById('carrito-total');
+            tbody.innerHTML = '';
+
+            if (carrito.length === 0) { contenedor.style.display = 'none'; return; }
+            contenedor.style.display = 'block';
+
+            let granTotal = 0;
+            carrito.forEach((item, index) => {
+                const subtotal = item.cant * item.precio;
+                granTotal += subtotal;
+                tbody.innerHTML += `<tr>
+                    <td>${item.nombre}</td>
+                    <td>${item.cant}</td>
+                    <td>$${item.precio.toFixed(2)}</td>
+                    <td>$${subtotal.toFixed(2)}</td>
+                    <td style="text-align:center;"><button type="button" class="btn-remove" onclick="eliminarDelCarrito(${index})"><i class="fas fa-trash"></i></button></td>
+                </tr>`;
+            });
+            divTotal.innerText = `Total: $${granTotal.toFixed(2)}`;
+        }
+
+        function eliminarDelCarrito(index) {
+            carrito.splice(index, 1);
+            actualizarTablaCarrito();
+        }
+
+        // BÚSQUEDA DE CLIENTE POR CÉDULA
+        document.getElementById('cedula').addEventListener('blur', async function() {
+            const ced = this.value;
+            if (ced.length > 3) {
+                try {
+                    const res = await fetch('../backend/catalogo.php?action=check_cedula&cedula=' + ced);
+                    const data = await res.json();
+                    
+                    const campos = ['cliente', 'telefono', 'correo', 'direccion'];
+                    if (data.exists) {
+                        document.getElementById('cliente').value = data.nombre || '';
+                        document.getElementById('telefono').value = data.telefono || '';
+                        document.getElementById('correo').value = data.correo || '';
+                        document.getElementById('direccion').value = data.direccion || '';
+                        campos.forEach(id => document.getElementById(id).setAttribute('readonly', true));
+                    } else {
+                        campos.forEach(id => {
+                            document.getElementById(id).value = '';
+                            document.getElementById(id).removeAttribute('readonly');
+                        });
+                    }
+                } catch (e) { console.log("Error buscando cliente", e); }
+            }
+        });
+
+        async function crearSolicitud(e) {
+            e.preventDefault();
+            if (carrito.length === 0) {
+                Swal.fire('Atención', 'El carrito está vacío.', 'warning');
+                return;
+            }
+
+            const payload = {
+                cedula: document.getElementById('cedula').value,
+                nombre: document.getElementById('cliente').value,
+                telefono: document.getElementById('telefono').value,
+                correo: document.getElementById('correo').value,
+                direccion: document.getElementById('direccion').value,
+                carrito: carrito
+            };
+
+            try {
+                const res = await fetch('../backend/catalogo.php?action=confirmar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    Swal.fire('¡Registrada!', 'Solicitud cargada con éxito.', 'success');
+                    e.target.reset();
+                    ['cliente', 'telefono', 'correo', 'direccion'].forEach(id => document.getElementById(id).removeAttribute('readonly'));
+                    carrito = [];
+                    actualizarTablaCarrito();
+                    cargarProductos();
+                } else {
+                    Swal.fire('Error', data.message, 'error');
+                }
+            } catch { Swal.fire('Error', 'No se pudo contactar al servidor.', 'error'); }
+        }
+
+        window.onload = () => { applySecurity(); cargarProductos(); document.getElementById('solicitud-form').addEventListener('submit', crearSolicitud); };
+    </script>
+</body>
+</html>

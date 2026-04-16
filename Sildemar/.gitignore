@@ -1,0 +1,11 @@
+# Entorno local XAMPP/PHP
+node_modules/
+vendor/
+.env
+
+# Seguridad de Credenciales
+backend/db.php
+
+# Basuras de OS
+.DS_Store
+Thumbs.db

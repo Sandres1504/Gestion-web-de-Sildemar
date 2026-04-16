@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control - Sildemar</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+
+    <div class="sidebar" id="sidebar">
+        <h2>SILDEMAR</h2>
+
+        <a href="dashboard.html">
+            <i class="fas fa-home"></i> Inicio
+        </a>
+
+        <a href="gestion_usuarios.html">
+            <i class="fas fa-user-plus"></i> Crear Usuarios
+        </a>
+
+        <a href="inventario.html">
+            <i class="fas fa-boxes"></i> Inventario
+        </a>
+
+        <a href="solicitudes.html">
+            <i class="fas fa-shopping-cart"></i> Solicitudes
+        </a>
+
+        <a href="Historial_clientes.html">
+            <i class="fas fa-users"></i> Historial Cliente
+        </a>
+
+        <a href="reportes.html">
+            <i class="fas fa-file-pdf"></i> Reportes
+        </a>
+
+        <a href="../index.html" class="btn-logout" id="logout-btn">
+            <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+        </a>
+    </div>
+
+    <div class="main-content">
+        <header>
+            <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
+            <h1>Panel de Control</h1>
+            <div style="color: #004080; font-weight: bold;">
+                <i class="fas fa-user-circle"></i> <span id="user-role-display">Cargando...</span>
+            </div>
+        </header>
+
+        <main>
+            <div class="cards">
+                <div class="card">
+                    <h3>📦 Inventario Total</h3>
+                    <p>120 Artículos</p>
+                </div>
+                <div class="card">
+                    <h3>🛒 Solicitudes Pendientes</h3>
+                    <p>8 Pedidos</p>
+                </div>
+                <div class="card">
+                    <h3>✅ Completadas</h3>
+                    <p>45 Éxitos</p>
+                </div>
+                <div class="card" style="cursor: pointer; background: #eef2f7;"
+                    onclick="window.location.href='gestion_usuarios.html'">
+                    <h3><i class="fas fa-user-plus"></i> Crear Usuarios</h3>
+                    <p>Gestión de Acceso</p>
+                </div>
+                <div class="card" style="cursor: pointer; background: #eef2f7;"
+                    onclick="window.location.href='../Cliente/cliente.html'">
+                    <h3><i class="fas fa-store"></i> Catálogo</h3>
+                    <p>Vista del Cliente</p>
+                </div>
+            </div>
+
+            <div class="dashboard-section">
+                <h3><i class="fas fa-chart-pie"></i> Análisis de Datos</h3>
+
+                <div class="charts-container">
+                    <div class="chart-box">
+                        <h4>Distribución por Categorías</h4>
+                        <canvas id="tortaChart"></canvas>
+                    </div>
+
+                    <div class="chart-box">
+                        <h4>Movimiento de Inventario</h4>
+                        <canvas id="barrasChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // 1. APLICAR SEGURIDAD REAL AL CARGAR
+        async function applySecurity() {
+            // Obtenemos los datos del usuario que guardamos en el login
+            const userData = JSON.parse(localStorage.getItem('usuario_actual'));
+
+            // Si no hay datos, significa que no ha iniciado sesión, lo devolvemos al login
+            if (!userData) {
+                window.location.href = "../index.html";
+                return;
+            }
+
+            if (userData.rol !== 'Administrador') {
+                alert("Acceso denegado. Solo administradores pueden ver esta página.");
+                window.location.href = "../index.html";
+                return;
+            }
+
+            // Mostramos el nombre y rol real en la cabecera
+            const roleDisplay = document.getElementById('user-role-display');
+            roleDisplay.innerText = `${userData.nombre || 'Usuario'} (${userData.rol})`;
+
+            // Cargar datos dinámicos desde la BD
+            try {
+                const response = await fetch('../backend/dashboard.php');
+                const result = await response.json();
+
+                if (result.success) {
+                    // Actualizar tarjetas grandes
+                    document.querySelector('.cards').innerHTML = `
+                        <div class="card">
+                            <h3>📦 Inventario Total</h3>
+                            <p>${result.metrics.productos} Artículos</p>
+                        </div>
+                        <div class="card">
+                            <h3>🛒 Solicitudes Pendientes</h3>
+                            <p>${result.metrics.pendientes} Pedidos</p>
+                        </div>
+                        <div class="card">
+                            <h3>✅ Historial de Solicitudes</h3>
+                            <p>$${result.metrics.ventas}</p>
+                        </div>
+                        <div class="card" style="cursor: pointer; background: #eef2f7;" onclick="window.location.href='gestion_usuarios.html'">
+                            <h3><i class="fas fa-user-plus"></i> Crear Usuarios</h3>
+                            <p>Gestión de Acceso</p>
+                        </div>
+                        <div class="card" style="cursor: pointer; background: #eef2f7;" onclick="window.location.href='../Cliente/cliente.html'">
+                            <h3><i class="fas fa-store"></i> Catálogo</h3>
+                            <p>Vista del Cliente</p>
+                        </div>
+                    `;
+
+                    // Actualizar gráfico de categorías con datos reales
+                    const marcasLabels = result.grafico.map(g => g.marca);
+                    const marcasStock = result.grafico.map(g => g.cantidad);
+
+                    const ctxTorta = document.getElementById('tortaChart').getContext('2d');
+                    new Chart(ctxTorta, {
+                        type: 'pie',
+                        data: {
+                            labels: marcasLabels.length > 0 ? marcasLabels : ['Sin Datos'],
+                            datasets: [{
+                                label: 'Stock por Categoría',
+                                data: marcasStock.length > 0 ? marcasStock : [1],
+                                backgroundColor: ['#004080', '#007bff', '#e74c3c', '#2ecc71', '#f1c40f'],
+                                borderWidth: 1
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false }
+                    });
+
+                    // Configurando la gráfica de barras reales (Ingresos por mes)
+                    const mesesPlano = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+                    const barrasLabels = result.graficoBarras && result.graficoBarras.length > 0
+                        ? result.graficoBarras.map(b => mesesPlano[b.mes - 1])
+                        : ['Sin Datos'];
+                    const barrasVentas = result.graficoBarras && result.graficoBarras.length > 0
+                        ? result.graficoBarras.map(b => b.ventas)
+                        : [0];
+
+                    const ctxBarras = document.getElementById('barrasChart').getContext('2d');
+                    new Chart(ctxBarras, {
+                        type: 'bar',
+                        data: {
+                            labels: barrasLabels,
+                            datasets: [{
+                                label: 'Ingresos Mensuales ($)',
+                                data: barrasVentas,
+                                backgroundColor: '#004080'
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false }
+                    });
+
+                } else {
+                    console.error("Error cargando dashboard:", result.message);
+                }
+            } catch (error) {
+                console.error("Error en la petición del dashboard:", error);
+            }
+        }
+
+        // 2. FUNCIÓN PARA CERRAR SESIÓN
+        document.getElementById('logout-btn').addEventListener('click', function (e) {
+            e.preventDefault();
+            localStorage.removeItem('usuario_actual');
+            window.location.href = "../index.html";
+        });
+
+        // 3. RESPONSIVE SIDEBAR
+        function toggleSidebar() {
+            const sidebar = document.getElementById("sidebar");
+            sidebar.classList.toggle("active");
+        }
+
+        // Ejecutar seguridad y carga al inciar
+        window.onload = applySecurity;
+    </script>
+</body>
+
+</html>

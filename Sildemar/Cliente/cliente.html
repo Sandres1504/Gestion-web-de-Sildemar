@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catálogo Sildemar | Gestión de Pedidos</title>
+
+    <link rel="stylesheet" href="../css/cliente.css?v=2">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+
+
+</head>
+
+<body>
+
+    <div class="header">
+        <h2>Sildemar Repuestos</h2>
+        <span>Catálogo de Cliente</span>
+    </div>
+
+    <!-- WRAPPER LAYOUT DEL CLIENTE -->
+    <div class="cliente-layout">
+        <main>
+            <div class="filter-grid">
+
+                <input type="text" id="srcName" placeholder="Buscar repuesto..." oninput="filtrar()">
+
+                <select id="srcMarca" onchange="filtrar()">
+                    <option value="">Marca del repuesto</option>
+                    <option value="Monroe">Monroe</option>
+                    <option value="Bosch">Bosch</option>
+                    <option value="ACDelco">ACDelco</option>
+                </select>
+
+                <select id="srcMarcaVehiculo" onchange="filtrar()">
+                    <option value="">Marca de vehículo</option>
+                    <option value="Toyota">Toyota</option>
+                    <option value="Ford">Ford</option>
+                    <option value="Chevrolet">Chevrolet</option>
+                </select>
+
+                <input type="text" id="srcModeloVehiculo" placeholder="Modelo de vehículo" oninput="filtrar()">
+
+                <select id="srcTrans" onchange="filtrar()">
+                    <option value="">Transmisión</option>
+                    <option value="Automática">Automática</option>
+                    <option value="Sincrónica">Sincrónica</option>
+                </select>
+
+                <select id="srcYear" onchange="filtrar()">
+                    <option value="">Año</option>
+                </select>
+
+                <button onclick="reset()">Limpiar</button>
+
+            </div>
+
+            <div class="catalog" id="catalog-list"></div>
+
+        </main>
+
+        <aside>
+
+            <div class="cart-card">
+
+                <h3>🛒 Tu Pedido</h3>
+
+                <div id="cart-items">
+                    <p style="text-align:center;color:#888">No hay productos añadidos</p>
+                </div>
+
+                <div class="total" id="total-price">Total: $0.00</div>
+
+                <button class="btn-confirm" id="btn-order" onclick="abrirCedulaModal()" disabled>
+                    CONFIRMAR COMPRA
+                </button>
+
+            </div>
+
+        </aside>
+
+    </div>
+    <!-- FIN DEL WRAPPER LAYOUT -->
+
+    <!-- MODAL CEDULA -->
+
+    <div class="modal" id="cedulaModal">
+
+        <div class="modal-content">
+
+            <h2>Verificación de Cliente</h2>
+
+            <p>Ingresa tu cédula</p>
+
+            <input type="text" id="cedulaInput" placeholder="Ej: 12345678"
+                oninput="this.value = this.value.replace(/[^0-9]/g, '')" maxlength="15">
+
+            <br><br>
+
+            <button onclick="verificarCedula()">Continuar</button>
+
+            <button onclick="cerrarCedula()">Cancelar</button>
+
+        </div>
+
+    </div>
+
+
+    <!-- MODAL REGISTRO -->
+
+    <div class="modal" id="registroModal">
+
+        <div class="modal-content">
+
+            <h2>Registro de Cliente</h2>
+
+            <p>No encontramos tu cédula</p>
+
+            <input type="text" id="regNombre" placeholder="Nombre completo"
+                oninput="this.value = this.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '')">
+
+            <input type="text" id="regDireccion" placeholder="Dirección">
+
+            <input type="text" id="regTelefono" placeholder="Teléfono"
+                oninput="this.value = this.value.replace(/[^0-9]/g, '')" maxlength="15">
+
+            <input type="email" id="regCorreo" placeholder="Correo">
+            <br><br>
+
+            <button onclick="registrarCliente()">Guardar</button>
+
+            <button onclick="cerrarRegistro()">Cancelar</button>
+
+        </div>
+
+    </div>
+
+    <footer>
+        © 2026 Autorepuestos Sildemar M.V.R. C.A. - Todos los derechos reservados
+    </footer>
+
+
+
+    <!-- MODAL CANTIDAD -->
+    <div class="modal" id="cantidadModal">
+        <div class="modal-content">
+            <h2 id="modalCantTitle">Añadir al Carrito</h2>
+            <p id="modalCantText"></p>
+            <input type="number" id="cantidadInput" min="1" value="1">
+            <br><br>
+            <button onclick="confirmarCantidad()">Añadir al Carrito</button>
+            <button class="btn-cancel" onclick="cerrarCantidad()">Cancelar</button>
+        </div>
+    </div>
+
+    <script>
+
+        /* PRODUCTOS DINÁMICOS DESDE BD */
+
+        let productos = [];
+        let carrito = [];
+        let cedulaActual = null;
+
+        /* OBTENER PRODUCTOS DEL BACKEND */
+        async function cargarProductos() {
+    try {
+        const response = await fetch('../backend/catalogo.php?action=list');
+        const data = await response.json();
+
+        productos = data.map(p => {
+            let nombreFoto = (p.imagen && p.imagen !== 'default.jpg') ? p.imagen : 'default.jpg';
+
+            return {
+                id: parseInt(p.id_producto),
+                codigo: p.codigo,
+                nombre: p.nombre_producto,
+                marca: p.marca_repuesto || 'Genérica',
+                modelo: p.marca_carro || 'Universal',
+                precio: parseFloat(p.precio),
+                stock: parseInt(p.stock_actual),
+                img: `../Ima/${nombreFoto.toLowerCase()}` 
+            };
+        });
+
+        render();
+    } catch (error) {
+        console.error("Error cargando productos:", error);
+    }
+}
+
+        /* RENDER PRODUCTOS */
+
+        function render(data = productos) {
+
+            const list = document.getElementById("catalog-list")
+
+            list.innerHTML = data.map(p => `
+
+<div class="product-card">
+
+<img src="${p.img}" class="product-img">
+
+<h4>${p.nombre}</h4>
+
+<div>
+
+<span>Ref: ${p.marca}</span><br>
+<span>${p.modelo}</span><br>
+
+</div>
+
+<br>
+
+<strong>$${p.precio.toFixed(2)}</strong>
+<br>
+<span style="color: #28a745; font-size: 0.9em;">Stock Disponible: <b>${p.stock}</b></span>
+
+<br><br>
+
+<button onclick="agregar(${p.id})">Añadir</button>
+
+</div>
+
+`).join("")
+
+        }
+
+        let productoSeleccionadoParaAñadir = null;
+
+        function agregar(id) {
+            const prod = productos.find(p => p.id === id);
+            if (!prod) return;
+
+            productoSeleccionadoParaAñadir = prod;
+            document.getElementById("modalCantTitle").innerText = `Añadir ${prod.nombre}`;
+            document.getElementById("modalCantText").innerText = `Se encontraron ${prod.stock} unidades en el inventario. ¿Cuántas deseas llevar?`;
+
+            const input = document.getElementById("cantidadInput");
+            input.value = 1;
+            input.max = prod.stock;
+
+            document.getElementById("cantidadModal").style.display = "flex";
+        }
+
+        function cerrarCantidad() {
+            document.getElementById("cantidadModal").style.display = "none";
+            productoSeleccionadoParaAñadir = null;
+        }
+
+        function confirmarCantidad() {
+            const prod = productoSeleccionadoParaAñadir;
+            if (!prod) return;
+
+            let cantidad = parseInt(document.getElementById("cantidadInput").value);
+
+            if (isNaN(cantidad) || cantidad <= 0) {
+                Swal.fire('Cantidad Inválida', 'Por favor, ingresa una cantidad numérica válida mayor a 0.', 'warning');
+                return;
+            }
+
+            const existe = carrito.find(p => p.id === prod.id);
+
+            // Calcular cantidad total si ya lo tiene en el carrito
+            const cantidadEnCarrito = existe ? existe.cant : 0;
+            const cantidadTotalDeseada = cantidadEnCarrito + cantidad;
+
+            if (cantidadTotalDeseada > prod.stock) {
+                Swal.fire('Stock Insuficiente', `¡Lo sentimos! Solo tenemos ${prod.stock} unidades de este producto en inventario. Actualmente tienes ${cantidadEnCarrito} en el carrito.`, 'error');
+                return;
+            }
+
+            if (existe) {
+                existe.cant += cantidad;
+            } else {
+                carrito.push({ ...prod, cant: cantidad });
+            }
+
+            actualizarCarrito();
+            cerrarCantidad();
+        }
+
+        function eliminar(id) {
+
+            carrito = carrito.filter(p => p.id !== id)
+
+            actualizarCarrito()
+
+        }
+
+        function actualizarCarrito() {
+
+            const items = document.getElementById("cart-items")
+
+            const btn = document.getElementById("btn-order")
+
+            if (carrito.length === 0) {
+
+                items.innerHTML = '<p style="text-align:center;color:#888">No hay productos añadidos</p>'
+
+                document.getElementById("total-price").innerText = "Total: $0.00"
+
+                btn.disabled = true
+
+                return
+
+            }
+
+            items.innerHTML = carrito.map(p => `
+
+<div>
+
+<strong>${p.nombre}</strong>
+
+<br>
+
+${p.cant} x $${p.precio}
+
+<button onclick="eliminar(${p.id})">X</button>
+
+</div>
+
+`).join("")
+
+            const total = carrito.reduce((s, p) => s + (p.precio * p.cant), 0)
+
+            document.getElementById("total-price").innerText = `Total: $${total}`
+
+            btn.disabled = false
+
+        }
+
+        /* FILTRO */
+
+        function filtrar() {
+
+            const nombre = document.getElementById("srcName").value.toLowerCase()
+            const marcaRep = document.getElementById("srcMarca").value
+            const marcaVeh = document.getElementById("srcMarcaVehiculo").value
+            const modeloVeh = document.getElementById("srcModeloVehiculo").value.toLowerCase()
+            const trans = document.getElementById("srcTrans").value
+            const anio = document.getElementById("srcYear").value
+
+            const f = productos.filter(p =>
+
+                p.nombre.toLowerCase().includes(nombre) &&
+                (marcaRep == "" || p.marca == marcaRep) &&
+                (marcaVeh == "" || p.modelo == marcaVeh) &&
+                (modeloVeh == "" || p.modelo.toLowerCase().includes(modeloVeh)) &&
+                (trans == "" || p.trans == trans) &&
+                (anio == "" || p.anio == anio)
+
+            )
+
+            render(f)
+
+        }
+
+        function reset() {
+
+            document.querySelectorAll("select,input").forEach(el => el.value = "")
+
+            render()
+
+        }
+
+        /* MODALES */
+
+        function abrirCedulaModal() {
+
+            document.getElementById("cedulaModal").style.display = "flex"
+
+        }
+
+        function cerrarCedula() {
+
+            document.getElementById("cedulaModal").style.display = "none"
+
+        }
+
+        function abrirRegistro() {
+
+            document.getElementById("registroModal").style.display = "flex"
+
+        }
+
+        function cerrarRegistro() {
+
+            document.getElementById("registroModal").style.display = "none"
+
+        }
+
+        /* ENVIAR PEDIDO A LA BD */
+        async function enviarPedido(nombre, direccion = null, telefono = null) {
+
+            if (carrito.length === 0) {
+                alert("El carrito está vacío");
+                return;
+            }
+
+            // Preparar el formato esperado por el backend (catalogo.php action=confirmar)
+            // Espera: { cedula, nombre, direccion, telefono, carrito: [ {id_producto, cant, precio} ] }
+            const payload = {
+                cedula: cedulaActual,
+                nombre: nombre || "Cliente Frecuente", 
+                direccion: direccion,
+                telefono: telefono,
+                carrito: carrito.map(p => ({
+                    id_producto: p.id,
+                    cant: p.cant,
+                    precio: p.precio
+                }))
+            };
+
+            try {
+                const btn = document.getElementById("btn-order");
+                btn.disabled = true;
+                btn.innerText = "PROCESANDO...";
+
+                const res = await fetch('../backend/catalogo.php?action=confirmar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    Swal.fire({
+                        title: '¡Éxito!',
+                        text: 'Pedido realizado con éxito',
+                        icon: 'success',
+                        confirmButtonText: 'Genial'
+                    }).then(() => {
+                        carrito = []
+                        actualizarCarrito()
+                        cargarProductos()
+                    });
+                } else {
+                    Swal.fire('Error', data.message || "No se pudo procesar el pedido", 'error')
+                }
+            } catch (error) {
+                console.error(error)
+                Swal.fire('Error', 'Hubo un problema de conexión', 'error')
+            } finally {
+                const btn = document.getElementById("btn-order");
+                btn.disabled = carrito.length === 0;
+                btn.innerText = "CONFIRMAR COMPRA";
+            }
+        }
+
+        /* CLIENTES (VALIDACIÓN BD) */
+
+        async function verificarCedula() {
+            const ced = document.getElementById("cedulaInput").value.trim();
+            if (!ced) { Swal.fire('Cédula Requerida', 'Ingresa una cédula', 'warning'); return; }
+            if (!/^\d+$/.test(ced)) { Swal.fire('Formato Inválido', 'La cédula solo puede contener números', 'warning'); return; }
+            cedulaActual = ced;
+
+            try {
+                // Consultar a la base de datos si la cédula ya existe
+                const res = await fetch(`../backend/catalogo.php?action=check_cedula&cedula=${ced}`);
+                const data = await res.json();
+
+                cerrarCedula();
+
+                if (data.exists) {
+                    // Ya es cliente nuestro, procedemos directo usando su nombre guardado
+                    enviarPedido(data.nombre);
+                } else {
+                    // Cliente nuevo, necesitamos su nombre
+                    abrirRegistro();
+                }
+            } catch (e) {
+                console.error(e);
+                Swal.fire('Error', 'Ocurrió un error consultando la cédula.', 'error');
+            }
+        }
+
+        function registrarCliente() {
+            const nombre = document.getElementById("regNombre").value.trim();
+            const direccion = document.getElementById("regDireccion").value.trim();
+            const telefono = document.getElementById("regTelefono").value.trim();
+
+            if (!nombre) {
+                Swal.fire('Atención', 'El nombre es obligatorio para emitir la factura.', 'warning');
+                return;
+            }
+
+            if (telefono && !/^\d+$/.test(telefono)) {
+                Swal.fire('Formato Inválido', 'El teléfono debe contener solo números.', 'warning');
+                return;
+            }
+
+            cerrarRegistro();
+            enviarPedido(nombre, direccion, telefono);
+        }
+
+        /* INICIO */
+
+        window.onload = () => {
+            cargarProductos();
+            const srcYear = document.getElementById("srcYear");
+            for (let i = 2026; i >= 2010; i--) {
+                const opt = document.createElement("option");
+                opt.value = i;
+                opt.text = i;
+                srcYear.appendChild(opt);
+            }
+        }
+
+    </script>
+
+</body>
+
+</html>

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Mis Solicitudes - Sildemar</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2>SILDEMAR</h2>
+        <a href="empleado.html"><i class="fas fa-home"></i> Mi Panel</a>
+        <a href="inventario.html"><i class="fas fa-boxes"></i> Ver Inventario</a>
+        <a href="nueva_solicitud.html"><i class="fas fa-plus-circle"></i> Nueva Solicitud</a>
+        <a href="#"><i class="fas fa-shopping-cart"></i> Mis Solicitudes</a>
+        <a href="#" id="logout-btn" style="margin-top:40px;background:#c0392b;">
+            <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+        </a>
+    </div>
+
+    <div class="main-content">
+        <h2>Mis Solicitudes</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Productos</th>
+                    <th>Cant.</th>
+                    <th>Cliente</th>
+                    <th>Teléfono</th>
+                    <th>Correo</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody id="tablaSolicitudes">
+                <tr><td colspan="7" style="text-align:center;">Cargando solicitudes...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        function applySecurity() {
+            const userData = JSON.parse(localStorage.getItem('usuario_actual'));
+            if (!userData || userData.rol !== 'Empleado') {
+                window.location.href = "../index.html";
+            }
+        }
+
+        document.getElementById('logout-btn').addEventListener('click', function (e) {
+            e.preventDefault();
+            localStorage.removeItem('usuario_actual');
+            window.location.href = "../index.html";
+        });
+
+        async function cargarSolicitudes() {
+            const tabla = document.getElementById("tablaSolicitudes");
+            
+            try {
+                // 1. CORRECCIÓN:
+                const response = await fetch(`../backend/get_reportes.php?action=empleado_solicitudes`);
+                const solicitudes = await response.json(); 
+
+                tabla.innerHTML = "";
+
+                if (!solicitudes || solicitudes.length === 0) {
+                    tabla.innerHTML = '<tr><td colspan="7" style="text-align:center;">No hay solicitudes registradas</td></tr>';
+                    return;
+                }
+
+                // 2. CORRECCIÓN: 
+                solicitudes.forEach(s => {
+                    tabla.innerHTML += `
+                        <tr>
+                            <td>${s.id_solicitud}</td>
+                            <td>${s.productos || 'Sin productos'}</td>
+                            <td>${s.total_items || 0}</td>
+                            <td><strong>${s.cliente}</strong></td>
+                            <td>${s.telefono || 'N/A'}</td>
+                            <td>${s.correo || 'N/A'}</td>
+                            <td><span class="status-${s.estado.toLowerCase()}">${s.estado}</span></td>
+                        </tr>
+                    `;
+                });
+
+            } catch (e) {
+                console.error("Error cargando solicitudes", e);
+                tabla.innerHTML = '<tr><td colspan="7" style="text-align:center; color:red;">Error al conectar con el servidor</td></tr>';
+            }
+        }
+
+        window.onload = function () {
+            applySecurity();
+            cargarSolicitudes();
+        }
+    </script>
+</body>
+</html>
