@@ -1,0 +1,10 @@
+vendor
+node_modules
+.git
+.env
+tmp
+/.idea
+/.vscode
+Dockerfile
+docker-compose.yml
+.dockerignore

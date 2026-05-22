@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Administrador del Sistema | Sildemar</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <style>
+        /* Estilos específicos del dashboard */
+        .welcome-card {
+            background: linear-gradient(135deg, #3B7BC0 0%, #2F639A 100%);
+            border-radius: 20px;
+            padding: 35px 30px;
+            margin-bottom: 30px;
+            color: white;
+            box-shadow: 0 10px 25px rgba(59, 123, 192, 0.3);
+        }
+
+        .welcome-card h2 {
+            margin: 0 0 12px 0;
+            font-size: 1.8rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .welcome-card p {
+            opacity: 0.9;
+            margin: 0;
+            font-size: 1rem;
+        }
+
+        .welcome-card .role-badge {
+            background: rgba(255,255,255,0.2);
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 30px;
+            font-size: 12px;
+            margin-top: 18px;
+            font-weight: 600;
+        }
+
+        .info-panel {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border: 1px solid rgba(59, 123, 192, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .info-panel:hover {
+            border-color: #3B7BC0;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+
+        .info-panel h4 {
+            color: #3B7BC0;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.2rem;
+            border-bottom: 2px solid #eef2f7;
+            padding-bottom: 10px;
+        }
+
+        .info-panel ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .info-panel li {
+            margin: 12px 0;
+            color: #555;
+            line-height: 1.5;
+        }
+
+        .info-panel li strong {
+            color: #2c3e50;
+        }
+
+        .datetime-card {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .datetime-box {
+            flex: 1;
+            background: linear-gradient(135deg, #f8f9fa 0%, #eef2f7 100%);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid rgba(59, 123, 192, 0.1);
+        }
+
+        .datetime-box i {
+            font-size: 2rem;
+            color: #3B7BC0;
+            margin-bottom: 10px;
+        }
+
+        .datetime-box .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #2c3e50;
+            font-family: monospace;
+        }
+
+        .datetime-box .label {
+            font-size: 0.75rem;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 8px;
+        }
+
+        .stats-mini {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-mini {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border: 1px solid rgba(59, 123, 192, 0.1);
+        }
+
+        .stat-mini i {
+            font-size: 1.8rem;
+            color: #3B7BC0;
+            margin-bottom: 8px;
+        }
+
+        .stat-mini .number {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
+        .stat-mini .stat-label {
+            font-size: 0.75rem;
+            color: #7f8c8d;
+            text-transform: uppercase;
+        }
+
+        @media (max-width: 768px) {
+            .datetime-card {
+                flex-direction: column;
+            }
+            .stats-mini {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="sidebar" id="sidebar">
+        <h2>SILDEMAR</h2>
+
+        <a href="dashboard.html" class="active">
+            <i class="fas fa-home"></i> Inicio
+        </a>
+        <a href="gestion_usuarios.html">
+            <i class="fas fa-user-shield"></i> Usuarios
+        </a>
+        <a href="auditoria.html">
+            <i class="fas fa-history"></i> Auditoría
+        </a>
+        <a href="perfil.html">
+            <i class="fas fa-user-edit"></i> Mi Perfil
+        </a>
+
+        <a href="../index.html" class="btn-logout" id="logout-btn">
+            <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+        </a>
+    </div>
+
+    <div class="main-content">
+        <header>
+            <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
+            <h1>Panel de Control</h1>
+            <div style="color: #3B7BC0; font-weight: bold;">
+                <i class="fas fa-user-shield"></i> <span id="user-role-display">Cargando...</span>
+            </div>
+        </header>
+
+        <main>
+            <!-- Panel de bienvenida -->
+            <div class="welcome-card">
+                <h2>
+                    <i class="fas fa-hand-wave"></i> 
+                    ¡Bienvenido, <span id="nombre-usuario">Administrador</span>!
+                </h2>
+                <p>Este es tu centro de control para la administración del sistema Sildemar.</p>
+                <span class="role-badge"><i class="fas fa-shield-alt"></i> ROL: Administrador del Sistema</span>
+            </div>
+
+            <!-- Tarjetas de información del sistema -->
+            <div class="stats-mini">
+                <div class="stat-mini">
+                    <i class="fas fa-users"></i>
+                    <div class="number" id="total-usuarios">--</div>
+                    <div class="stat-label">Usuarios en el Sistema</div>
+                </div>
+                <div class="stat-mini">
+                    <i class="fas fa-user-tie"></i>
+                    <div class="number" id="total-empleados">--</div>
+                    <div class="stat-label">Empleados Registrados</div>
+                </div>
+            </div>
+
+            <!-- Panel de información - Qué puedes hacer -->
+            <div class="info-panel">
+                <h4><i class="fas fa-cog"></i> ¿Qué puedes hacer?</h4>
+                <ul>
+                    <li><strong>👥 Gestión de Usuarios:</strong> Crear, modificar o eliminar cuentas de empleados del sistema.</li>
+                    <li><strong>📋 Auditoría:</strong> Revisar el historial completo de acciones realizadas por todos los usuarios.</li>
+                    <li><strong>🔒 Seguridad:</strong> Controlar roles y permisos de acceso al sistema.</li>
+                </ul>
+            </div>
+
+            <!-- Fecha y Hora (estilo mejorado) -->
+            <div class="datetime-card">
+                <div class="datetime-box">
+                    <i class="fas fa-clock"></i>
+                    <div class="value" id="hora-actual">--:--:--</div>
+                    <div class="label">HORA DEL SISTEMA</div>
+                </div>
+                <div class="datetime-box">
+                    <i class="fas fa-calendar-alt"></i>
+                    <div class="value" id="fecha-actual">--</div>
+                    <div class="label">FECHA ACTUAL</div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let userData = null;
+
+        async function applySecurity() {
+            userData = JSON.parse(localStorage.getItem('usuario_actual'));
+
+            if (!userData) {
+                window.location.href = "../index.html";
+                return;
+            }
+
+            if (userData.rol !== 'Gerente del Sistema') {
+                alert("Acceso denegado. Solo el Administrador del Sistema puede ver esta página.");
+                window.location.href = "../index.html";
+                return;
+            }
+
+            document.getElementById('user-role-display').innerHTML = `${userData.nombre || 'Usuario'} (${userData.rol})`;
+            document.getElementById('nombre-usuario').innerText = userData.nombre?.split(' ')[0] || 'Administrador';
+
+            // Verificar si es el primer inicio de sesión
+            if (userData.primer_login === 1) {
+                Swal.fire({
+                    title: '¡Aviso de Seguridad!',
+                    text: 'Es tu primera vez en el sistema. Tu contraseña actual no es segura. Por favor, cámbiala en tu perfil.',
+                    icon: 'warning',
+                    confirmButtonText: 'Ir a Mi Perfil',
+                    confirmButtonColor: '#3B7BC0',
+                    allowOutsideClick: false
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.location.href = 'perfil.html';
+                    }
+                });
+
+                // Actualizamos el objeto local para que no vuelva a salir en esta sesión
+                userData.primer_login = 0;
+                localStorage.setItem('usuario_actual', JSON.stringify(userData));
+            }
+        }
+
+        async function cargarEstadisticas() {
+            try {
+                const res = await fetch('../backend/get_usuarios_stats.php');
+                const data = await res.json();
+                
+                if (data.success) {
+                    document.getElementById('total-usuarios').innerText = data.total_usuarios || 0;
+                    document.getElementById('total-empleados').innerText = data.total_empleados || 0;
+                } else {
+                    document.getElementById('total-usuarios').innerHTML = '?';
+                    document.getElementById('total-empleados').innerHTML = '?';
+                }
+            } catch (error) {
+                document.getElementById('total-usuarios').innerHTML = '?';
+                document.getElementById('total-empleados').innerHTML = '?';
+            }
+        }
+
+        function actualizarHoraFecha() {
+            const ahora = new Date();
+            const hora = ahora.toLocaleTimeString('es-VE', { hour12: false });
+            const fecha = ahora.toLocaleDateString('es-VE', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+            document.getElementById('hora-actual').innerHTML = hora;
+            document.getElementById('fecha-actual').innerHTML = fecha.charAt(0).toUpperCase() + fecha.slice(1);
+        }
+
+        function toggleSidebar() {
+            document.getElementById("sidebar").classList.toggle("active");
+        }
+
+        document.getElementById('logout-btn').addEventListener('click', function (e) {
+            e.preventDefault();
+            localStorage.removeItem('usuario_actual');
+            window.location.href = "../index.html";
+        });
+
+        window.onload = async () => {
+            await applySecurity();
+            await cargarEstadisticas();
+            actualizarHoraFecha();
+            setInterval(actualizarHoraFecha, 1000);
+        };
+    </script>
+</body>
+
+</html>

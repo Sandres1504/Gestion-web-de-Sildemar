@@ -1,169 +1,326 @@
 <?php
+ob_start();
 header('Content-Type: application/json');
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Pragma: no-cache");
+
 require_once 'db.php';
+require_once 'logger.php';
+
+
+
+
+
 
 $action = $_GET['action'] ?? '';
 
 try {
-    if ($action === 'create') {
-        $json = file_get_contents('php://input');
-        $data = json_decode($json, true);
 
-        if (!$data)
-            throw new Exception("Datos inválidos");
+    // 1. LISTAR SOLICITUDES
+    if ($action === 'list') {
+        // --- Lógica de Auto-Eliminación (48 horas) ---
+        // Buscamos solicitudes pendientes de más de 48 horas
+        $sqlCheck = "SELECT s.id_solicitud, p.nombre as cliente, p.telefono as cliente_telefono 
+                     FROM solicitud s 
+                     INNER JOIN cliente c ON s.id_cliente = c.id_cliente
+                     INNER JOIN persona p ON c.id_persona = p.id_persona
+                     WHERE s.estado = 'Pendiente' 
+                     AND s.fecha_solicitud < DATE_SUB(NOW(), INTERVAL 48 HOUR)";
+        
+        $stmtCheck = $conexion->query($sqlCheck);
+        $eliminadas = $stmtCheck->fetchAll(PDO::FETCH_ASSOC);
 
-        // Iniciamos transacción para asegurar la integridad
-        $conexion->beginTransaction();
-
-        // 1. Obtener precio actual para guardar el total en la solicitud
-        $sqlPrecio = "SELECT precio FROM producto WHERE id_producto = :id_p";
-        $stmtPrecio = $conexion->prepare($sqlPrecio);
-        $stmtPrecio->execute([':id_p' => $data['id_producto']]);
-        $producto = $stmtPrecio->fetch(PDO::FETCH_ASSOC);
-
-        if (!$producto)
-            throw new Exception("Producto no encontrado");
-        $total = $producto['precio'] * $data['cantidad'];
-
-        // 2. Insertar la solicitud (Estado inicial: Pendiente)
-        $sqlSol = "INSERT INTO solicitudes (cliente, id_producto, cantidad, fecha, estado, total) 
-        VALUES (:cliente, :id_p, :cant, NOW(), 'Pendiente', :total)";
-        $stmtSol = $conexion->prepare($sqlSol);
-        $stmtSol->execute([
-            ':cliente' => $data['cliente'],
-            ':id_p' => $data['id_producto'],
-            ':cant' => $data['cantidad'],
-            ':total' => $total
-        ]);
-
-        // 3. Restar el stock del inventario
-        $sqlStock = "UPDATE producto SET stock_actual = stock_actual - :cant 
-        WHERE id_producto = :id_p AND stock_actual >= :cant";
-        $stmtStock = $conexion->prepare($sqlStock);
-        $stmtStock->execute([
-            ':cant' => $data['cantidad'],
-            ':id_p' => $data['id_producto']
-        ]);
-
-        if ($stmtStock->rowCount() === 0) {
-            throw new Exception("Stock insuficiente para realizar la venta");
+        if (!empty($eliminadas)) {
+            $ids = array_column($eliminadas, 'id_solicitud');
+            $idsStr = implode(',', $ids);
+            
+            // Eliminamos las solicitudes (detalle_solicitud se elimina por cascada en la BD)
+            $conexion->query("DELETE FROM solicitud WHERE id_solicitud IN ($idsStr)");
+            
+            // Registrar en auditoría
+            foreach($ids as $id_del) {
+                registrarAuditoria($conexion, 0, "SISTEMA eliminó automáticamente solicitud ID: $id_del por expiración de 48h");
+            }
         }
+        // ---------------------------------------------
 
-        $conexion->commit();
-        echo json_encode(["success" => true]);
-    }
+        $sql = "SELECT 
+                    s.id_solicitud, 
+                    p.nombre AS cliente, 
+                    p.telefono AS cliente_telefono,
+                    s.fecha_solicitud AS fecha, 
+                    s.estado, 
+                    s.total,
+                    pv.nombre AS vendedor_nombre,
+                    pv.cedula AS vendedor_cedula
+                FROM solicitud s
+                INNER JOIN cliente c ON s.id_cliente = c.id_cliente
+                INNER JOIN persona p ON c.id_persona = p.id_persona
+                LEFT JOIN empleado e ON s.id_vendedor = e.id_empleado
+                LEFT JOIN usuario uv ON e.id_usuario = uv.id_usuario
+                LEFT JOIN persona pv ON uv.id_persona = pv.id_persona
+                WHERE (s.archivada = 0 OR s.archivada IS NULL)
+                ORDER BY s.fecha_solicitud DESC";
 
-    elseif ($action === 'list') {
-        $sql = "SELECT s.id_solicitud, s.estado, s.total, DATE_FORMAT(s.fecha_solicitud, '%Y-%m-%d %H:%i') as fecha, p.nombre as cliente 
-                FROM solicitud s 
-                JOIN cliente c ON s.id_cliente = c.id_cliente 
-                JOIN persona p ON c.id_persona = p.id_persona 
-                ORDER BY s.id_solicitud DESC";
-        $stmt = $conexion->query($sql);
+        $stmt = $conexion->prepare($sql);
+        $stmt->execute();
         $solicitudes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        echo json_encode(["success" => true, "data" => $solicitudes]);
-    }
-
-    elseif ($action === 'update_status') {
-        $id = $_GET['id'] ?? null;
-        $nuevoEstado = $_GET['estado'] ?? '';
-
-        if ($nuevoEstado === 'En Proceso') $nuevoEstado = 'Aprobada';
-        if ($nuevoEstado === 'Completada') $nuevoEstado = 'Entregada';
-
-        if (!$id || !$nuevoEstado) throw new Exception("Faltan parámetros");
-
-        $conexion->beginTransaction();
-
-        $stmtSelect = $conexion->prepare("SELECT estado FROM solicitud WHERE id_solicitud = :id FOR UPDATE");
-        $stmtSelect->execute([':id' => $id]);
-        $solicitud = $stmtSelect->fetch(PDO::FETCH_ASSOC);
-
-        if (!$solicitud) throw new Exception("Solicitud no encontrada");
-
-        if ($solicitud['estado'] !== $nuevoEstado) {
-            // Si se rechaza, devolvemos el stock al inventario
-            if ($nuevoEstado === 'Rechazada' && $solicitud['estado'] !== 'Rechazada') {
-                $stmtDetalles = $conexion->prepare("SELECT id_producto, cantidad FROM detalle_solicitud WHERE id_solicitud = :id");
-                $stmtDetalles->execute([':id' => $id]);
-                $detalles = $stmtDetalles->fetchAll(PDO::FETCH_ASSOC);
-
-                foreach ($detalles as $det) {
-                    $sqlStock = "UPDATE producto SET stock_actual = stock_actual + :cant WHERE id_producto = :id_p";
-                    $conexion->prepare($sqlStock)->execute([':cant' => $det['cantidad'], ':id_p' => $det['id_producto']]);
-                }
-            }
+        foreach ($solicitudes as &$sol) {
+            $sol['total'] = floatval($sol['total']);
         }
 
-        $sql = "UPDATE solicitud SET estado = :estado WHERE id_solicitud = :id";
-        $conexion->prepare($sql)->execute([':estado' => $nuevoEstado, ':id' => $id]);
-
-        $conexion->commit();
-        echo json_encode(["success" => true]);
+        if (ob_get_length()) ob_clean();
+        echo json_encode([
+            "success" => true, 
+            "data" => $solicitudes,
+            "eliminadas" => $eliminadas // Enviamos las que acabamos de borrar
+        ]);
+        exit;
     }
 
-    elseif ($action === 'delete') {
-        $id = $_GET['id'] ?? null;
-        if (!$id) throw new Exception("ID proporcionado inválido");
-
-        $conexion->beginTransaction();
-
-        $stmtSelect = $conexion->prepare("SELECT estado FROM solicitud WHERE id_solicitud = :id");
-        $stmtSelect->execute([':id' => $id]);
-        $solicitud = $stmtSelect->fetch(PDO::FETCH_ASSOC);
-
-        if ($solicitud) {
-            if ($solicitud['estado'] !== 'Rechazada') {
-                $stmtDetalles = $conexion->prepare("SELECT id_producto, cantidad FROM detalle_solicitud WHERE id_solicitud = :id");
-                $stmtDetalles->execute([':id' => $id]);
-                $detalles = $stmtDetalles->fetchAll(PDO::FETCH_ASSOC);
-
-                foreach ($detalles as $det) {
-                    $sqlStock = "UPDATE producto SET stock_actual = stock_actual + :cant WHERE id_producto = :id_p";
-                    $conexion->prepare($sqlStock)->execute([':cant' => $det['cantidad'], ':id_p' => $det['id_producto']]);
-                }
-            }
-
-            $sql = "DELETE FROM solicitud WHERE id_solicitud = :id";
-            $conexion->prepare($sql)->execute([':id' => $id]);
-        }
-
-        $conexion->commit();
-        echo json_encode(["success" => true]);
-    }
-
+    // 2. DETALLES
     elseif ($action === 'details') {
-        $id = $_GET['id'] ?? null;
-        if (!$id) throw new Exception("ID proporcionado inválido");
 
-        $sql = "SELECT d.cantidad, d.precio_unitario, d.subtotal, p.id_producto, p.nombre_producto, p.descripcion 
+        $id_solicitud = $_GET['id'] ?? 0;
+        if (!$id_solicitud) throw new Exception("ID requerido");
+
+        $sql = "SELECT 
+                    pr.nombre_producto, 
+                    d.precio_unitario, 
+                    d.cantidad, 
+                    d.subtotal
                 FROM detalle_solicitud d
-                JOIN producto p ON d.id_producto = p.id_producto
-                WHERE d.id_solicitud = :id";
+                INNER JOIN producto pr ON d.id_producto = pr.id_producto
+                WHERE d.id_solicitud = :id
+                ORDER BY d.id_detalle";
+
         $stmt = $conexion->prepare($sql);
-        $stmt->execute([':id' => $id]);
+        $stmt->execute([':id' => $id_solicitud]);
         $detalles = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        foreach ($detalles as &$item) {
-            $item['codigo'] = "PROD-" . $item['id_producto'];
-            if (!empty($item['descripcion'])) {
-                $desc = json_decode($item['descripcion'], true);
-                if (json_last_error() === JSON_ERROR_NONE && !empty($desc['codigo'])) {
-                    $item['codigo'] = $desc['codigo'];
-                }
-            }
-            unset($item['descripcion']);
+        // Calcular la suma real desde los detalles
+        $sumaReal = 0;
+        foreach ($detalles as &$det) {
+            $det['precio_unitario'] = floatval($det['precio_unitario']);
+            $det['cantidad'] = intval($det['cantidad']);
+            $det['subtotal'] = floatval($det['subtotal']);
+            $sumaReal += $det['subtotal'];
         }
 
-        echo json_encode(["success" => true, "data" => $detalles]);
+        // Obtener el total guardado en la tabla solicitud
+        $sqlTotal = "SELECT total FROM solicitud WHERE id_solicitud = :id";
+        $stmtTotal = $conexion->prepare($sqlTotal);
+        $stmtTotal->execute([':id' => $id_solicitud]);
+        $totalGuardado = $stmtTotal->fetch(PDO::FETCH_ASSOC);
+        
+        $totalGuardadoValor = $totalGuardado ? floatval($totalGuardado['total']) : 0;
+
+        if (ob_get_length()) ob_clean();
+        echo json_encode([
+            "success" => true, 
+            "data" => $detalles,
+            "detalles_count" => count($detalles),
+            "suma_real_subtotales" => $sumaReal,
+            "total_guardado_bd" => $totalGuardadoValor,
+            "hay_discrepancia" => ($sumaReal != $totalGuardadoValor)
+        ]);
+        exit;
     }
 
-}
+    // 3. ACTUALIZAR ESTADO
+    elseif ($action === 'update_status') {
 
-catch (Exception $e) {
-    if (isset($conexion) && $conexion->inTransaction())
-        $conexion->rollBack();
-    echo json_encode(["success" => false, "message" => $e->getMessage()]);
+        $id_solicitud = $_GET['id'] ?? 0;
+        $estado = $_GET['estado'] ?? '';
+
+        if (!$id_solicitud || !$estado) throw new Exception("Datos incompletos");
+
+        $valid_states = ['Pendiente', 'Aprobada', 'Rechazada', 'Entregada'];
+        if (!in_array($estado, $valid_states)) throw new Exception("Estado inválido");
+
+        $stmt = $conexion->prepare("UPDATE solicitud SET estado = :estado WHERE id_solicitud = :id");
+        $stmt->execute([
+            ':estado' => $estado,
+            ':id' => $id_solicitud
+        ]);
+
+        $activo_id = $_GET['activo_id'] ?? null;
+        if ($activo_id) {
+            registrarAuditoria($conexion, $activo_id, "Gerente Operacional cambió estado de solicitud ID: " . $id_solicitud . " a " . $estado);
+        }
+
+        if (ob_get_length()) ob_clean();
+        echo json_encode(["success" => true]);
+        exit;
+
+    }
+
+    // 4. ARCHIVAR SOLICITUDES (OCULTAR DE LA VISTA)
+    elseif ($action === 'archive') {
+        $data = json_decode(file_get_contents('php://input'), true);
+        
+        $where = ["1=1"];
+        $params = [];
+
+        if (!empty($data['fecha_desde'])) {
+            $where[] = "s.fecha_solicitud >= ?";
+            $params[] = $data['fecha_desde'] . " 00:00:00";
+        }
+        if (!empty($data['fecha_hasta'])) {
+            $where[] = "s.fecha_solicitud <= ?";
+            $params[] = $data['fecha_hasta'] . " 23:59:59";
+        }
+        if (!empty($data['id_desde'])) {
+            $where[] = "s.id_solicitud >= ?";
+            $params[] = $data['id_desde'];
+        }
+        if (!empty($data['id_hasta'])) {
+            $where[] = "s.id_solicitud <= ?";
+            $params[] = $data['id_hasta'];
+        }
+        if (!empty($data['cliente'])) {
+            $where[] = "(p.nombre LIKE ? OR p.cedula LIKE ?)";
+            $busqueda = "%" . $data['cliente'] . "%";
+            $params[] = $busqueda;
+            $params[] = $busqueda;
+        }
+        if (!empty($data['vendedor'])) {
+            $where[] = "pv.cedula LIKE ?";
+            $params[] = "%" . $data['vendedor'] . "%";
+        }
+        if (!empty($data['estado'])) {
+            $where[] = "s.estado = ?";
+            $params[] = $data['estado'];
+        }
+
+        $sql = "UPDATE solicitud s
+                INNER JOIN cliente c ON s.id_cliente = c.id_cliente
+                INNER JOIN persona p ON c.id_persona = p.id_persona
+                LEFT JOIN empleado e ON s.id_vendedor = e.id_empleado
+                LEFT JOIN usuario uv ON e.id_usuario = uv.id_usuario
+                LEFT JOIN persona pv ON uv.id_persona = pv.id_persona
+                SET s.archivada = 1 
+                WHERE " . implode(" AND ", $where);
+
+        $stmt = $conexion->prepare($sql);
+        $stmt->execute($params);
+        $count = $stmt->rowCount();
+
+        $activo_id = $data['activo_id'] ?? 0;
+        registrarAuditoria($conexion, $activo_id, "Archivó $count solicitudes masivamente.");
+
+        echo json_encode(["success" => true, "count" => $count]);
+        exit;
+    }
+
+    // 5. LISTAR ARCHIVADAS
+    elseif ($action === 'list_archived') {
+        $sql = "SELECT 
+                    s.id_solicitud, 
+                    p.nombre AS cliente, 
+                    p.telefono AS cliente_telefono,
+                    s.fecha_solicitud AS fecha, 
+                    s.estado, 
+                    s.total,
+                    pv.nombre AS vendedor_nombre,
+                    pv.cedula AS vendedor_cedula
+                FROM solicitud s
+                INNER JOIN cliente c ON s.id_cliente = c.id_cliente
+                INNER JOIN persona p ON c.id_persona = p.id_persona
+                LEFT JOIN empleado e ON s.id_vendedor = e.id_empleado
+                LEFT JOIN usuario uv ON e.id_usuario = uv.id_usuario
+                LEFT JOIN persona pv ON uv.id_persona = pv.id_persona
+                WHERE s.archivada = 1
+                ORDER BY s.fecha_solicitud DESC";
+
+        $stmt = $conexion->prepare($sql);
+        $stmt->execute();
+        $solicitudes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($solicitudes as &$sol) {
+            $sol['total'] = floatval($sol['total']);
+        }
+
+        if (ob_get_length()) ob_clean();
+        echo json_encode(["success" => true, "data" => $solicitudes]);
+        exit;
+    }
+
+    // 6. RESTAURAR SOLICITUDES (QUITAR DEL ARCHIVO)
+    elseif ($action === 'restore') {
+        $data = json_decode(file_get_contents('php://input'), true);
+        
+        $where = ["s.archivada = 1"];
+        $params = [];
+
+        if (!empty($data['id_solicitud'])) {
+            $where[] = "s.id_solicitud = ?";
+            $params[] = $data['id_solicitud'];
+        } else {
+            if (!empty($data['fecha_desde'])) {
+                $where[] = "s.fecha_solicitud >= ?";
+                $params[] = $data['fecha_desde'] . " 00:00:00";
+            }
+            if (!empty($data['fecha_hasta'])) {
+                $where[] = "s.fecha_solicitud <= ?";
+                $params[] = $data['fecha_hasta'] . " 23:59:59";
+            }
+            if (!empty($data['id_desde'])) {
+                $where[] = "s.id_solicitud >= ?";
+                $params[] = $data['id_desde'];
+            }
+            if (!empty($data['id_hasta'])) {
+                $where[] = "s.id_solicitud <= ?";
+                $params[] = $data['id_hasta'];
+            }
+            if (!empty($data['cliente'])) {
+                $where[] = "(p.nombre LIKE ? OR p.cedula LIKE ?)";
+                $busqueda = "%" . $data['cliente'] . "%";
+                $params[] = $busqueda;
+                $params[] = $busqueda;
+            }
+            if (!empty($data['vendedor'])) {
+                $where[] = "(pv.nombre LIKE ? OR pv.cedula LIKE ?)";
+                $busqueda = "%" . $data['vendedor'] . "%";
+                $params[] = $busqueda;
+                $params[] = $busqueda;
+            }
+            if (!empty($data['estado'])) {
+                $where[] = "s.estado = ?";
+                $params[] = $data['estado'];
+            }
+        }
+
+        $sql = "UPDATE solicitud s
+                INNER JOIN cliente c ON s.id_cliente = c.id_cliente
+                INNER JOIN persona p ON c.id_persona = p.id_persona
+                LEFT JOIN empleado e ON s.id_vendedor = e.id_empleado
+                LEFT JOIN usuario uv ON e.id_usuario = uv.id_usuario
+                LEFT JOIN persona pv ON uv.id_persona = pv.id_persona
+                SET s.archivada = 0 
+                WHERE " . implode(" AND ", $where);
+
+        $stmt = $conexion->prepare($sql);
+        $stmt->execute($params);
+        $count = $stmt->rowCount();
+
+        $activo_id = $data['activo_id'] ?? 0;
+        registrarAuditoria($conexion, $activo_id, "Restauró $count solicitudes del archivo.");
+
+        echo json_encode(["success" => true, "count" => $count]);
+        exit;
+    }
+
+    // DEFAULT
+    throw new Exception("Acción no válida");
+
+} catch (Exception $e) {
+
+    if (ob_get_length()) ob_clean();
+    echo json_encode([
+        "success" => false,
+        "message" => $e->getMessage()
+    ]);
 }
 ?>

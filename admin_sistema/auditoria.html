@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sildemar - Auditoría del Sistema</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+
+<body>
+    <div class="sidebar" id="sidebar">
+        <h2>SILDEMAR</h2>
+        <a href="dashboard.html">
+            <i class="fas fa-home"></i> Inicio
+        </a>
+        <a href="gestion_usuarios.html">
+            <i class="fas fa-user-plus"></i> Usuarios
+        </a>
+        <a href="auditoria.html">
+            <i class="fas fa-history"></i> Auditoría
+        </a>
+        <a href="perfil.html">
+            <i class="fas fa-user-edit"></i> Mi Perfil
+        </a>
+        <a href="../index.html" class="btn-logout" id="logout-btn">
+            <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+        </a>
+    </div>
+
+    <div class="main-content">
+        <div class="header-flex">
+            <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
+            <h1>Auditoría de Actividad</h1>
+        </div>
+
+        <div class="card" style="grid-column: 1 / -1;">
+            <h3>Últimos 100 Registros de Actividad</h3>
+            <p>Monitoreo de acciones de Gerentes Operacionales y cambios de sistema.</p>
+        </div>
+
+        <table style="margin-top: 20px;">
+            <thead>
+                <tr>
+                    <th>Fecha y Hora</th>
+                    <th>Usuario Responsable</th>
+                    <th>Acción Realizada</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-auditoria">
+                <tr>
+                    <td colspan="3" style="text-align: center;">Cargando registros...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        async function applySecurity() {
+            const userData = JSON.parse(localStorage.getItem('usuario_actual'));
+            if (!userData) {
+                window.location.href = "../index.html";
+                return;
+            }
+            if (userData.rol !== 'Gerente del Sistema') {
+                alert("Acceso denegado. Solo el Gerente del Sistema puede ver esta página.");
+                window.location.href = "../index.html";
+                return;
+            }
+        }
+
+        async function cargarAuditoria() {
+            try {
+                const res = await fetch('../backend/auditoria.php');
+                const data = await res.json();
+
+                const tabla = document.getElementById("tabla-auditoria");
+
+                if (data.success && data.data.length > 0) {
+                    tabla.innerHTML = data.data.map(r => `
+                        <tr>
+                            <td style="color: black; background-color: white;">${r.fecha}</td>
+                            <td style="font-weight:bold; color:#3B7BC0;">
+                                <i class="fas fa-user"></i> ${r.usuario || 'Sistema'}
+                            </td>
+                            <td>${r.accion}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tabla.innerHTML = '<tr><td colspan="3" style="text-align: center;">No hay registros recientes en el sistema.</td></tr>';
+                }
+            } catch (e) {
+                console.error(e);
+                document.getElementById("tabla-auditoria").innerHTML = '<tr><td colspan="3" style="text-align: center; color: red;">Error cargando registros de auditoría.</td></tr>';
+            }
+        }
+
+        function toggleSidebar() {
+            document.getElementById("sidebar").classList.toggle("active");
+        }
+
+        document.getElementById('logout-btn').onclick = (e) => {
+            e.preventDefault();
+            localStorage.removeItem('usuario_actual');
+            window.location.href = "../index.html";
+        };
+
+        window.onload = function () {
+            applySecurity();
+            cargarAuditoria();
+        };
+    </script>
+</body>
+
+</html>

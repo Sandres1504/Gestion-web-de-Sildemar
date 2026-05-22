@@ -1,6 +1,10 @@
 <?php
+session_start();
 header('Content-Type: application/json');
 require_once 'db.php';
+
+$id_usuario_sesion = $_SESSION['usuario_id'] ?? null;
+$rol_sesion = $_SESSION['usuario_rol'] ?? '';
 
 try {
     // 1. Conteo de productos
@@ -8,8 +12,21 @@ try {
     $totalProductos = $resProd->fetch(PDO::FETCH_ASSOC)['total'];
 
     // 2. Conteo de solicitudes pendientes
-    $resSol = $conexion->query("SELECT COUNT(*) as total FROM solicitud WHERE estado = 'Pendiente'");
-    $pedidosPendientes = $resSol->fetch(PDO::FETCH_ASSOC)['total'];
+    if ($rol_sesion === 'Empleado' && $id_usuario_sesion) {
+        // Contar solo las solicitudes asignadas a este empleado
+        $stmtSol = $conexion->prepare("
+            SELECT COUNT(*) as total 
+            FROM solicitud s
+            INNER JOIN empleado e ON s.id_vendedor = e.id_empleado
+            WHERE s.estado = 'Pendiente' AND e.id_usuario = ?
+        ");
+        $stmtSol->execute([$id_usuario_sesion]);
+        $pedidosPendientes = $stmtSol->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+    } else {
+        // Conteo global para Gerentes
+        $resSol = $conexion->query("SELECT COUNT(*) as total FROM solicitud WHERE estado = 'Pendiente'");
+        $pedidosPendientes = $resSol->fetch(PDO::FETCH_ASSOC)['total'];
+    }
 
     // 3. Suma total de ventas (ingresos)
     $resVentas = $conexion->query("SELECT SUM(total) as total FROM solicitud WHERE estado = 'Entregada'");
@@ -33,12 +50,17 @@ try {
     ");
     $graficoBarras = $resBarras->fetchAll(PDO::FETCH_ASSOC);
 
+    // 7. Tasa del dólar actual
+    $stmtTasa = $conexion->query("SELECT tasa_dolar FROM configuracion WHERE id = 1");
+    $tasa = $stmtTasa->fetch(PDO::FETCH_ASSOC)['tasa_dolar'] ?? 0;
+
     echo json_encode([
         "success" => true,
         "metrics" => [
             "productos" => $totalProductos,
             "pendientes" => $pedidosPendientes,
-            "ventas" => number_format($totalVentas, 2)
+            "ventas" => (float)$totalVentas,
+            "tasa_dolar" => $tasa
         ],
         "grafico" => $graficoMarcas,
         "graficoBarras" => $graficoBarras,

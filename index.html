@@ -1,221 +1,457 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
-<meta charset="UTF-8">
-<title>Sildemar - Acceso</title>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sildemar - Acceso</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-<style>
-body {
-    margin: 0;
-    font-family: 'Segoe UI', sans-serif;
-    background: #003366;
-    height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background: #CFE2F3;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
 
-.login-card {
-    background: white;
-    padding: 40px;
-    border-radius: 15px;
-    width: 350px;
-    text-align: center;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-}
+        div.login-card {
+            /* Added div. to make it more specific */
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
 
-h1 { color: #004080; margin: 0; }
+        .logo-login {
+            width: 120px;
+            /* Adjusted width for better fit */
+            height: auto;
+            margin-bottom: 20px;
 
-input {
-    width: 100%;
-    padding: 12px;
-    margin: 10px 0;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    box-sizing: border-box;
-}
+            background-color: transparent;
+            /* Asegura que el fondo del tag sea nulo */
+            mix-blend-mode: normal;
+            filter: drop-shadow(0px 4px 8px rgba(0, 0, 0, 0.5));
+            /* Le da profundidad sobre el negro */
+        }
 
-.btn-login {
-    width: 100%;
-    padding: 12px;
-    background: #004080;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: bold;
-}
+        h1 {
+            color: #3B7BC0;
+            margin: 0;
+        }
 
-.forgot {
-    display: block;
-    margin-top: 15px;
-    color: #004080;
-    text-decoration: none;
-    font-size: 13px;
-    cursor: pointer;
-}
-</style>
+        h4 {
+            color: #666;
+            margin: 5px 0 15px;
+            font-weight: 500;
+        }
+
+        .description {
+            color: #555;
+            font-size: 14px;
+            line-height: 1.5;
+            margin: 0 0 25px;
+        }
+
+        .login-label {
+            color: #3B7BC0;
+            font-weight: bold;
+            margin-bottom: 15px;
+            border-top: 1px solid #e1e5eb;
+            padding-top: 20px;
+            font-size: 15px;
+        }
+
+        /* Already updated */
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 12px;
+            background: #3B7BC0;
+            /* Already updated */
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .forgot {
+            display: block;
+            /* Already updated */
+            margin-top: 15px;
+            color: #3B7BC0;
+            text-decoration: none;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .password-container {
+            position: relative;
+            width: 100%;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #666;
+            transition: color 0.3s;
+        }
+
+        .toggle-password:hover {
+            color: #3B7BC0;
+        }
+
+        .password-container input {
+            padding-right: 40px;
+        }
+
+        .swal-input-container {
+            position: relative;
+        }
+
+        .swal-input-container .toggle-password {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #666;
+            cursor: pointer;
+        }
+
+        .password-rules {
+            text-align: left;
+            padding: 0 12px;
+            margin-top: 10px;
+            color: #444;
+            font-size: 0.92em;
+        }
+
+        .password-rules .rule {
+            margin: 4px 0;
+        }
+
+        .password-rules .rule.valid {
+            color: #218838;
+            font-weight: bold;
+        }
+    </style>
 
 </head>
+
 <body>
 
-<div class="login-card">
+    <div class="login-card">
+        <img src="admin_operativo/logotipo.png" alt="Sildemar Logo" class="logo-login">
 
-<h1>SILDEMAR</h1>
-<p>Panel Administrativo</p>
+        <h1>Autorepuestos SILDEMAR</h1>
+        <h4>J-30903326-3</h4>
 
-<form id="login-form">
-<input type="email" id="email" placeholder="Correo Institucional" required>
-<input type="password" id="clave" placeholder="Clave de Acceso" required>
-<button type="submit" class="btn-login">ENTRAR</button>
-</form>
+        <p class="description">
+            Sistema integral de gestión de inventario y solicitudes de venta.
+        </p>
 
-<a class="forgot" onclick="solicitarReset()">¿Olvidó su clave?</a>
+        <p class="login-label">Panel de Inicio de Sesión</p>
 
-</div>
+        <form id="login-form">
+            <input type="email" id="email" placeholder="Correo Institucional" required>
+            <div class="password-container">
+                <input type="password" id="clave" placeholder="Clave de Acceso" required>
+                <i class="fas fa-eye-slash toggle-password" id="eye-icon"></i>
+            </div>
+            <button type="submit" class="btn-login">ENTRAR</button>
+        </form>
 
-<script>
-async function solicitarReset() {
-    const { value: email } = await Swal.fire({
-        title: 'Recuperar Contraseña',
-        input: 'email',
-        inputLabel: 'Ingresa tu correo institucional',
-        inputPlaceholder: 'ejemplo@sildemar.com',
-        showCancelButton: true,
-        confirmButtonText: 'Enviar código',
-        cancelButtonText: 'Cancelar'
-    });
+        <a class="forgot" href="#" onclick="solicitarReset(); return false;">¿Olvidó su clave?</a>
 
-    if (!email) return;
+    </div>
 
-    Swal.fire({ title: 'Enviando...', allowOutsideClick: false });
-    Swal.showLoading();
+    <script>
+        window.solicitarReset = async function () {
+            const { value: email } = await Swal.fire({
+                title: 'Recuperar Contraseña',
+                input: 'email',
+                inputLabel: 'Ingresa tu correo institucional',
+                inputPlaceholder: 'ejemplo@sildemar.com',
+                showCancelButton: true,
+                confirmButtonText: 'Enviar código',
+                cancelButtonText: 'Cancelar'
+            });
 
-    try {
-        const res = await fetch('backend/recuperar.php?action=generate_code', {
-            method: 'POST',
-            body: JSON.stringify({ correo: email })
-        });
-        const data = await res.json();
+            if (!email) return;
 
-        if (!data.success) {
-            Swal.fire('Error', data.message || 'No se pudo enviar el correo', 'error');
-            return;
-        }
+            Swal.fire({ title: 'Enviando...', allowOutsideClick: false });
+            Swal.showLoading();
 
-        // Paso 2: Pedir el código
-        const { value: codigo } = await Swal.fire({
-            title: 'Ingresa el código',
-            input: 'text',
-            inputLabel: 'Enviamos un código de 6 dígitos a tu correo',
-            inputPlaceholder: '000000',
-            showCancelButton: true,
-            confirmButtonText: 'Verificar'
-        });
+            try {
+                const res = await fetch('backend/recuperar.php?action=generate_code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ correo: email })
+                });
+                const text = await res.text();
+                let data = null;
+                try {
+                    data = JSON.parse(text || '{}');
+                } catch (err) {
+                    throw new Error('Respuesta inválida del servidor.');
+                }
 
-        if (!codigo) return;
-        
-        Swal.fire({ title: 'Verificando...', allowOutsideClick: false });
-        Swal.showLoading();
+                if (!res.ok || !data.success) {
+                    Swal.fire('Error', data.message || 'No se pudo enviar el correo', 'error');
+                    return;
+                }
 
-        const res2 = await fetch('backend/recuperar.php?action=verify_code', {
-            method: 'POST',
-            body: JSON.stringify({ correo: email, codigo: codigo })
-        });
-        const data2 = await res2.json();
+                // No mostrar el código en el modal por seguridad (se envía por correo)
 
-        if (!data2.success) {
-            Swal.fire('Error', data2.message, 'error');
-            return;
-        }
+                // Paso 2: Pedir el código
+                const { value: codigo } = await Swal.fire({
+                    title: 'Ingresa el código',
+                    input: 'text',
+                    inputLabel: 'Enviamos un código de 6 dígitos a tu correo',
+                    inputPlaceholder: '000000',
+                    showCancelButton: true,
+                    confirmButtonText: 'Verificar'
+                });
 
-        // Paso 3: Nueva clave
-        const { value: nuevaClave } = await Swal.fire({
-            title: 'Nueva Contraseña',
-            input: 'password',
-            inputLabel: 'Escribe tu nueva contraseña segura',
-            showCancelButton: true,
-            confirmButtonText: 'Cambiar',
-            inputValidator: (value) => {
-                if (!value || value.length < 6) return "Debe tener al menos 6 caracteres";
+                if (!codigo) return;
+
+                Swal.fire({ title: 'Verificando...', allowOutsideClick: false });
+                Swal.showLoading();
+
+                const res2 = await fetch('backend/recuperar.php?action=verify_code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ correo: email, codigo: codigo })
+                });
+                const text2 = await res2.text();
+                let data2 = null;
+                try {
+                    data2 = JSON.parse(text2 || '{}');
+                } catch (err) {
+                    throw new Error('Respuesta inválida del servidor.');
+                }
+
+                if (!res2.ok || !data2.success) {
+                    Swal.fire('Error', data2.message || 'El código es incorrecto o ha caducado', 'error');
+                    return;
+                }
+
+                // Paso 3: Nueva clave
+                const passwordHtml = `
+                  <div class="swal-input-container">
+                    <input id="swal-password" class="swal2-input" type="password" placeholder="Nueva contraseña">
+                    <i class="fas fa-eye toggle-password" id="swal-eye-1"></i>
+                  </div>
+                  <div class="swal-input-container">
+                    <input id="swal-password-confirm" class="swal2-input" type="password" placeholder="Repite nueva contraseña">
+                    <i class="fas fa-eye toggle-password" id="swal-eye-2"></i>
+                  </div>
+                  <div class="password-rules">
+                    <p id="rule-length" class="rule">Mínimo 8 caracteres</p>
+                    <p id="rule-uppercase" class="rule">Al menos una letra mayúscula</p>
+                    <p id="rule-lowercase" class="rule">Al menos una letra minúscula</p>
+                    <p id="rule-number" class="rule">Al menos un número</p>
+                    <p id="rule-special" class="rule">Al menos un carácter especial permitido (!@#$%^&*_=+?<>~-|)</p>
+                    <p id="rule-forbidden" class="rule">No puede usar (): ; : , . ' {} []</p>
+                  </div>
+                `;
+
+                const { value: nuevaClave } = await Swal.fire({
+                    title: 'Nueva Contraseña',
+                    html: passwordHtml,
+                    showCancelButton: true,
+                    confirmButtonText: 'Cambiar',
+                    focusConfirm: false,
+                    didOpen: () => {
+                      const passwordInput = document.getElementById('swal-password');
+                      const passwordConfirmInput = document.getElementById('swal-password-confirm');
+                      const eye1 = document.getElementById('swal-eye-1');
+                      const eye2 = document.getElementById('swal-eye-2');
+
+                      const updateRules = () => {
+                        const value = passwordInput.value;
+                        const hasLength = value.length >= 8;
+                        const hasUpper = /[A-Z]/.test(value);
+                        const hasLower = /[a-z]/.test(value);
+                        const hasNumber = /\d/.test(value);
+                        const hasSpecial = /[!@#$%^&*_=+?<>~`|\-]/.test(value);
+                        const hasForbidden = /[()\[\]{};:.,'\"]/.test(value);
+                        const setClass = (id, valid) => {
+                          const el = document.getElementById(id);
+                          if (el) el.classList.toggle('valid', valid);
+                        };
+
+                        setClass('rule-length', hasLength);
+                        setClass('rule-uppercase', hasUpper);
+                        setClass('rule-lowercase', hasLower);
+                        setClass('rule-number', hasNumber);
+                        setClass('rule-special', hasSpecial);
+                        setClass('rule-forbidden', !hasForbidden);
+                      };
+
+                      const togglePassword = (input, eye) => {
+                        const isPassword = input.type === 'password';
+                        input.type = isPassword ? 'text' : 'password';
+                        eye.classList.toggle('fa-eye');
+                        eye.classList.toggle('fa-eye-slash');
+                      };
+
+                      passwordInput.addEventListener('input', updateRules);
+                      eye1.addEventListener('click', () => togglePassword(passwordInput, eye1));
+                      eye2.addEventListener('click', () => togglePassword(passwordConfirmInput, eye2));
+                    },
+                    preConfirm: () => {
+                      const passwordInput = document.getElementById('swal-password');
+                      const passwordConfirmInput = document.getElementById('swal-password-confirm');
+                      if (!passwordInput || !passwordConfirmInput) {
+                        Swal.showValidationMessage('No se pudo leer las contraseñas.');
+                        return;
+                      }
+
+                      const password = passwordInput.value;
+                      const confirmPassword = passwordConfirmInput.value;
+                      const hasLength = password.length >= 8;
+                      const hasUpper = /[A-Z]/.test(password);
+                      const hasLower = /[a-z]/.test(password);
+                      const hasNumber = /\d/.test(password);
+                      const hasSpecial = /[!@#$%^&*_=+?<>~`|\-]/.test(password);
+                      const hasForbidden = /[()\[\]{};:.,'\"]/.test(password);
+
+                      if (!hasLength || !hasUpper || !hasLower || !hasNumber || !hasSpecial || hasForbidden) {
+                        Swal.showValidationMessage('La contraseña no cumple las reglas de seguridad.');
+                        return;
+                      }
+
+                      if (password !== confirmPassword) {
+                        Swal.showValidationMessage('Las contraseñas no coinciden.');
+                        return;
+                      }
+
+                      return password;
+                    }
+                });
+
+                if (!nuevaClave) return;
+
+                Swal.fire({ title: 'Actualizando...', allowOutsideClick: false });
+                Swal.showLoading();
+
+                const res3 = await fetch('backend/recuperar.php?action=reset_password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ correo: email, codigo: codigo, clave: nuevaClave })
+                });
+                const text3 = await res3.text();
+                let data3 = null;
+                try {
+                    data3 = JSON.parse(text3 || '{}');
+                } catch (err) {
+                    throw new Error('Respuesta inválida del servidor.');
+                }
+
+                if (data3.success) {
+                    Swal.fire('¡Éxito!', 'Tu contraseña ha sido actualizada.', 'success');
+                } else {
+                    Swal.fire('Error', data3.message || 'Ocurrió un problema', 'error');
+                }
+
+            } catch (error) {
+                Swal.fire('Error de red', 'No se pudo conectar con el servidor.', 'error');
             }
-        });
-
-        if (!nuevaClave) return;
-        
-        Swal.fire({ title: 'Actualizando...', allowOutsideClick: false });
-        Swal.showLoading();
-
-        const res3 = await fetch('backend/recuperar.php?action=reset_password', {
-            method: 'POST',
-            body: JSON.stringify({ correo: email, codigo: codigo, clave: nuevaClave })
-        });
-        const data3 = await res3.json();
-
-        if (data3.success) {
-            Swal.fire('¡Éxito!', 'Tu contraseña ha sido actualizada.', 'success');
-        } else {
-            Swal.fire('Error', data3.message || 'Ocurrió un problema', 'error');
         }
 
-    } catch (error) {
-        Swal.fire('Error de red', 'No se pudo conectar con el servidor.', 'error');
-    }
-}
+        document.getElementById("login-form").onsubmit = async function (e) {
+            e.preventDefault();
 
-document.getElementById("login-form").onsubmit = async function(e) {
+            // Deshabilitar botón para evitar múltiples envíos
+            const btn = e.target.querySelector('.btn-login');
+            const originalText = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = 'CARGANDO...';
 
-e.preventDefault()
+            const email = document.getElementById("email").value;
+            const clave = document.getElementById("clave").value;
 
-const formData = new FormData()
-formData.append('correo', document.getElementById("email").value)
-formData.append('clave', document.getElementById("clave").value)
+            const formData = new FormData();
+            formData.append('correo', email);
+            formData.append('clave', clave);
 
-try {
+            try {
+                const response = await fetch('backend/login.php', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    body: formData
+                });
 
-const response = await fetch(
-'backend/login.php',
-{
-method: 'POST',
-body: formData
-})
+                const result = await response.json();
 
-const result = await response.json()
+                if (result.success) {
+                    localStorage.setItem('usuario_actual', JSON.stringify(result));
 
-if (result.success) {
+                    if (result.rol === "Gerente Operacional") {
+                        window.location.href = 'admin_operativo/dashboard.html';
+                    } else if (result.rol === "Gerente del Sistema") {
+                        window.location.href = 'admin_sistema/dashboard.html';
+                    } else {
+                        window.location.href = 'empleado/empleado.html';
+                    }
+                } else {
+                    // MODAL DE ERROR DE CREDENCIALES
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Acceso Denegado',
+                        text: result.message || 'Correo o contraseña incorrectos',
+                        confirmButtonText: 'Volver a intentar', /* Already updated */
+                        confirmButtonColor: '#3B7BC0'
+                    });
+                }
+            } catch (error) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error de Red',
+                    text: 'No se pudo establecer conexión con el servidor.'
+                });
+            } finally {
+                btn.disabled = false;
+                btn.innerText = originalText;
+            }
+        };
 
-localStorage.setItem('usuario_actual', JSON.stringify(result))
+        // Lógica para mostrar/ocultar contraseña
+        const eyeIcon = document.getElementById('eye-icon');
+        const claveInput = document.getElementById('clave');
 
-if (result.rol === "Administrador") {
-
-window.location.href =
-'Admin/dashboard.html'
-
-}
-else if (result.rol === "Empleado") {
-
-window.location.href =
-'Empleado/empleado.html'
-
-}
-
-}
-else {
-
-alert(result.message)
-
-}
-
-}
-catch (error) {
-
-alert("No se pudo conectar con el servidor")
-
-}
-
-}
-</script>
+        eyeIcon.addEventListener('click', () => {
+            const isPassword = claveInput.type === 'password';
+            claveInput.type = isPassword ? 'text' : 'password';
+            eyeIcon.classList.toggle('fa-eye');
+            eyeIcon.classList.toggle('fa-eye-slash');
+        });
+    </script>
 
 </body>
+
 </html>

@@ -1,139 +1,205 @@
 <?php
+ob_start();
+require_once 'secure_session.php';
 header('Content-Type: application/json');
+// Evitar cacheo para que los cambios en stock y tasa se vean al momento
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Pragma: no-cache");
+
 require_once 'db.php';
 
 $action = $_GET['action'] ?? '';
 
+
 try {
+    // 1. LISTAR PRODUCTOS (CATÁLOGO)
     if ($action === 'list') {
-        // Obtenemos solo productos con stock disponible
-        $stmt = $conexion->query("SELECT * FROM producto WHERE stock_actual > 0");
+        // Sincronizar con ID 1
+        $stmtTasa = $conexion->query("SELECT tasa_dolar FROM configuracion WHERE id = 1");
+        $resTasa = $stmtTasa->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$resTasa) throw new Exception("Configuración de tasa no encontrada");
+        $tasa = (float)$resTasa['tasa_dolar'];
+
+        // Obtener productos con stock
+        $stmt = $conexion->query("SELECT id_producto, codigo, nombre_producto, marca_repuesto, marca_carro, modelo_vehiculo, categoria, ano AS anio_carro, transmision, precio, stock_actual, imagen FROM producto WHERE stock_actual > 0");
         $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         foreach ($productos as &$p) {
-            $p['marca_repuesto'] = "N/A";
-            $p['marca_carro'] = "N/A";
-            $p['transmision'] = "N/A";
-            $p['codigo'] = "PROD-" . $p['id_producto'];
-
-            if (!empty($p['descripcion'])) {
-                $desc = json_decode($p['descripcion'], true);
-                if (json_last_error() === JSON_ERROR_NONE && is_array($desc)) {
-                    $p['marca_repuesto'] = $desc['marca_repuesto'] ?? "N/A";
-                    $p['marca_carro'] = $desc['marca_vehiculo'] ?? "N/A";
-                    $p['transmision'] = $desc['transmision'] ?? "N/A";
-                    if (!empty($desc['codigo'])) {
-                        $p['codigo'] = $desc['codigo'];
-                    }
-                }
-            }
+            $p['precio_bs'] = round($p['precio'] * $tasa, 2);
+            $p['marca_repuesto'] = $p['marca_repuesto'] ?? "N/A";
+            $p['marca_carro'] = $p['marca_carro'] ?? "Universal";
+            $p['modelo_vehiculo'] = $p['modelo_vehiculo'] ?? "N/A";
+            $p['transmision'] = $p['transmision'] ?? "N/A";
+            $p['anio_carro'] = $p['anio_carro'] ?? "N/A";
+            $p['codigo'] = $p['codigo'] ?? ("PROD-" . $p['id_producto']);
         }
 
-        echo json_encode($productos);
+        if (ob_get_length()) ob_clean();
+        echo json_encode(["success" => true, "productos" => $productos, "tasa_dolar" => $tasa]);
+        exit;
     }
 
+    // 2. VERIFICAR SI LA CÉDULA EXISTE
     elseif ($action === 'check_cedula') {
         $cedula = $_GET['cedula'] ?? '';
-        if (!$cedula) throw new Exception("Cedula requerida");
+        if (!$cedula) throw new Exception("Cédula requerida");
         
-        $stmt = $conexion->prepare("SELECT nombre FROM persona WHERE cedula = :ced");
+        // Buscamos en persona y también su correo si tiene usuario
+        $stmt = $conexion->prepare("
+            SELECT p.nombre, p.telefono, p.correo, p.direccion
+            FROM persona p
+            WHERE p.cedula = :ced
+        ");
         $stmt->execute([':ced' => $cedula]);
         $persona = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($persona) {
-            echo json_encode(["success" => true, "exists" => true, "nombre" => $persona['nombre']]);
-        } else {
-            echo json_encode(["success" => true, "exists" => false]);
-        }
+        echo json_encode([
+            "success" => true, 
+            "exists"    => (bool)$persona, 
+            "nombre"    => $persona['nombre']    ?? null,
+            "telefono"  => $persona['telefono']  ?? null,
+            "correo"    => $persona['correo']    ?? null,
+            "direccion" => $persona['direccion'] ?? null
+        ]);
+        exit;
     }
 
+    // 3. CONFIRMAR PEDIDO (TRANSACCIÓN)
     elseif ($action === 'confirmar') {
-        $json = file_get_contents('php://input');
-        $data = json_decode($json, true);
+        $data = json_decode(file_get_contents('php://input'), true);
 
-        if (empty($data['carrito']))
-            throw new Exception("El carrito está vacío");
+        if (empty($data['carrito'])) throw new Exception("El carrito está vacío");
+        if (empty($data['cedula'])) throw new Exception("Faltan datos del cliente");
 
         $conexion->beginTransaction();
 
-        // 1. Obtener o insertar persona y cliente
-        // Refuerzo de Seguridad XSS: Limpieza obligatoria antes de base de datos
-        $cedula = htmlspecialchars(trim($data['cedula'] ?? ''), ENT_QUOTES, 'UTF-8');
-        $nombre = htmlspecialchars(trim($data['nombre'] ?? ''), ENT_QUOTES, 'UTF-8');
+        // Limpieza de datos (Seguridad básica)
+        $cedula    = htmlspecialchars(trim($data['cedula']), ENT_QUOTES, 'UTF-8');
+        $nombre    = htmlspecialchars(trim($data['nombre'] ?? 'Cliente'), ENT_QUOTES, 'UTF-8');
         $direccion = isset($data['direccion']) ? htmlspecialchars(trim($data['direccion']), ENT_QUOTES, 'UTF-8') : null;
-        $telefono = isset($data['telefono']) ? htmlspecialchars(trim($data['telefono']), ENT_QUOTES, 'UTF-8') : null;
+        $telefono  = isset($data['telefono']) ? htmlspecialchars(trim($data['telefono']), ENT_QUOTES, 'UTF-8') : null;
 
+        // --- Gestión de Persona/Cliente ---
         $stmtP = $conexion->prepare("SELECT id_persona FROM persona WHERE cedula = :ced");
         $stmtP->execute([':ced' => $cedula]);
         $persona = $stmtP->fetch(PDO::FETCH_ASSOC);
 
         if (!$persona) {
-            $stmtInsertP = $conexion->prepare("INSERT INTO persona (cedula, nombre, direccion, telefono) VALUES (:ced, :nom, :dir, :tel)");
-            $stmtInsertP->execute([':ced' => $cedula, ':nom' => $nombre, ':dir' => $direccion, ':tel' => $telefono]);
+            // Insertar nueva persona (incluye correo si viene del carrito del cliente)
+            $correo_nuevo = isset($data['correo']) ? htmlspecialchars(trim($data['correo']), ENT_QUOTES, 'UTF-8') : null;
+            $stmtInsertP = $conexion->prepare("INSERT INTO persona (cedula, nombre, direccion, telefono, correo) VALUES (:ced, :nom, :dir, :tel, :correo)");
+            $stmtInsertP->execute([':ced' => $cedula, ':nom' => $nombre, ':dir' => $direccion, ':tel' => $telefono, ':correo' => $correo_nuevo]);
             $id_persona = $conexion->lastInsertId();
 
+            // Insertar nuevo cliente
             $stmtInsertC = $conexion->prepare("INSERT INTO cliente (id_persona) VALUES (:id_p)");
             $stmtInsertC->execute([':id_p' => $id_persona]);
             $id_cliente = $conexion->lastInsertId();
-        }
-        else {
+        } else {
             $id_persona = $persona['id_persona'];
+            // Verificar si la persona ya está registrada como cliente
             $stmtC = $conexion->prepare("SELECT id_cliente FROM cliente WHERE id_persona = :id_p");
             $stmtC->execute([':id_p' => $id_persona]);
             $cliente = $stmtC->fetch(PDO::FETCH_ASSOC);
+
             if (!$cliente) {
                 $stmtInsertC = $conexion->prepare("INSERT INTO cliente (id_persona) VALUES (:id_p)");
                 $stmtInsertC->execute([':id_p' => $id_persona]);
                 $id_cliente = $conexion->lastInsertId();
-            }
-            else {
+            } else {
                 $id_cliente = $cliente['id_cliente'];
             }
         }
 
-        // 2. Crear solicitud general
-        $totalGeneral = array_reduce($data['carrito'], function ($sum, $item) {
-            return $sum + ($item['precio'] * $item['cant']);
-        }, 0);
+        $totalGeneral = 0;
+$detallesAGuardar = [];
 
-        $sqlSol = "INSERT INTO solicitud (id_cliente, total, estado, fecha_solicitud) VALUES (:id_cli, :tot, 'Pendiente', NOW())";
-        $stmtSol = $conexion->prepare($sqlSol);
-        $stmtSol->execute([':id_cli' => $id_cliente, ':tot' => $totalGeneral]);
+// AGRUPAR PRODUCTOS REPETIDOS
+$carritoAgrupado = [];
+
+foreach ($data['carrito'] as $item) {
+    $id = $item['id_producto'];
+    if (!isset($carritoAgrupado[$id])) {
+        $carritoAgrupado[$id] = 0;
+    }
+    $carritoAgrupado[$id] += $item['cant'];
+}
+
+// VALIDAR Y CALCULAR
+foreach ($carritoAgrupado as $id_producto => $cantidad) {
+
+    $stmtProd = $conexion->prepare("SELECT precio, stock_actual FROM producto WHERE id_producto = ?");
+    $stmtProd->execute([$id_producto]);
+    $prodDb = $stmtProd->fetch(PDO::FETCH_ASSOC);
+
+    if (!$prodDb) throw new Exception("Producto con ID {$id_producto} no existe");
+    if ($prodDb['stock_actual'] < $cantidad) throw new Exception("Stock insuficiente");
+
+    $subtotal = $prodDb['precio'] * $cantidad;
+    $totalGeneral += $subtotal;
+
+    $detallesAGuardar[] = [
+        'id' => $id_producto,
+        'cant' => $cantidad,
+        'precio' => $prodDb['precio'],
+        'sub' => $subtotal
+    ];
+}
+
+        // --- Determinar empleado vendedor (Opcional si es cliente o autogestión) ---
+        $usuarioActual = $_SESSION['usuario_id'] ?? null;
+        $id_vendedor = null;
+
+        if ($usuarioActual) {
+            $stmtEmpleado = $conexion->prepare("SELECT id_empleado FROM empleado WHERE id_usuario = :id_usuario LIMIT 1");
+            $stmtEmpleado->execute([':id_usuario' => $usuarioActual]);
+            $empleado = $stmtEmpleado->fetch(PDO::FETCH_ASSOC);
+            
+            if ($empleado && !empty($empleado['id_empleado'])) {
+                $id_vendedor = $empleado['id_empleado'];
+            }
+        }
+
+        // --- Insertar Solicitud ---
+        $stmtSol = $conexion->prepare("INSERT INTO solicitud (id_cliente, total, estado, fecha_solicitud, id_vendedor) VALUES (?, ?, 'Pendiente', NOW(), ?)");
+        $stmtSol->execute([$id_cliente, $totalGeneral, $id_vendedor]);
         $id_solicitud = $conexion->lastInsertId();
 
+        // --- Insertar Detalles y Actualizar Stock ---
+        $stmtDet = $conexion->prepare("INSERT INTO detalle_solicitud (id_solicitud, id_producto, cantidad, precio_unitario, subtotal) VALUES (?, ?, ?, ?, ?)");
+        $stmtStock = $conexion->prepare("UPDATE producto SET stock_actual = stock_actual - ? WHERE id_producto = ? AND stock_actual >= ?");
 
-        foreach ($data['carrito'] as $item) {
-            $totalItem = $item['precio'] * $item['cant'];
+        foreach ($detallesAGuardar as $det) {
+            $stmtDet->execute([$id_solicitud, $det['id'], $det['cant'], $det['precio'], $det['sub']]);
+            $stmtStock->execute([$det['cant'], $det['id'], $det['cant']]);
 
-            // 3. Insertar detalle
-            $sqlDetalle = "INSERT INTO detalle_solicitud (id_solicitud, id_producto, cantidad, precio_unitario, subtotal) 
-                    VALUES (:id_sol, :id_p, :cant, :precio, :subtot)";
-            $stmtD = $conexion->prepare($sqlDetalle);
-            $stmtD->execute([
-                ':id_sol' => $id_solicitud,
-                ':id_p' => $item['id_producto'],
-                ':cant' => $item['cant'],
-                ':precio' => $item['precio'],
-                ':subtot' => $totalItem
-            ]);
-
-            // 4. Restar stock
-            $upd = $conexion->prepare("UPDATE producto SET stock_actual = stock_actual - :cant 
-            WHERE id_producto = :id_p AND stock_actual >= :cant");
-            $upd->execute([':cant' => $item['cant'], ':id_p' => $item['id_producto']]);
-
-            if ($upd->rowCount() === 0) {
-                throw new Exception("Stock insuficiente para ID: " . $item['id_producto']);
+            if ($stmtStock->rowCount() === 0) {
+                throw new Exception("Error al actualizar stock para el producto ID: " . $det['id']);
             }
         }
 
         $conexion->commit();
-        echo json_encode(["success" => true]);
+        if (ob_get_length()) ob_clean();
+        // Devolver el codigo_solicitud que el catálogo del cliente usa para el mensaje de WhatsApp
+        $codigoFormateado = 'SOL-' . str_pad($id_solicitud, 6, '0', STR_PAD_LEFT);
+        echo json_encode([
+            "success" => true,
+            "message" => "Pedido realizado con éxito",
+            "codigo_solicitud" => $codigoFormateado,
+            "id_solicitud" => $id_solicitud
+        ]);
+        exit;
     }
-}
-catch (Exception $e) {
-    if (isset($conexion) && $conexion->inTransaction())
+
+    throw new Exception("Acción no válida");
+
+} catch (Exception $e) {
+    if (isset($conexion) && $conexion->inTransaction()) {
         $conexion->rollBack();
+    }
+    if (ob_get_length()) ob_clean();
     echo json_encode(["success" => false, "message" => $e->getMessage()]);
 }
+
 ?>

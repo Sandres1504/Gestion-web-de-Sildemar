@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inventario - Sildemar</title>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <style>
+    /* Estilos adicionales para los filtros mejorados */
+    .filters-section {
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 25px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      border: 1px solid #e1e5eb;
+    }
+
+    .filters-title {
+      color: #3B7BC0;
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-left: 3px solid #3B7BC0;
+      padding-left: 12px;
+    }
+
+    .filters-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .filter-group label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #495057;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .filter-group label i {
+      margin-right: 5px;
+      color: #3B7BC0;
+    }
+
+    .filter-group input,
+    .filter-group select {
+      padding: 12px 14px;
+      border: 1.5px solid #e9ecef;
+      border-radius: 10px;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      background: #f8f9fa;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    .filter-group input:focus,
+    .filter-group select:focus {
+      outline: none;
+      border-color: #3B7BC0;
+      background: white;
+      box-shadow: 0 0 0 3px rgba(59, 123, 192, 0.1);
+    }
+
+    .filter-group input::placeholder {
+      color: #adb5bd;
+    }
+
+    .filter-actions {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    .btn-filter {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-filter-primary {
+      background: #3B7BC0;
+      color: white;
+    }
+
+    .btn-filter-primary:hover {
+      background: #2F639A;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(59, 123, 192, 0.3);
+    }
+
+    .btn-filter-secondary {
+      background: #e9ecef;
+      color: #495057;
+    }
+
+    .btn-filter-secondary:hover {
+      background: #dde0e3;
+      transform: translateY(-2px);
+    }
+
+    .stock-alert {
+      color: #dc3545;
+      font-weight: bold;
+    }
+
+    .stock-ok {
+      color: #28a745;
+    }
+
+    .form-group-edit {
+      margin-bottom: 15px;
+      text-align: left;
+    }
+
+    .form-group-edit label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 5px;
+    }
+
+    @media (max-width: 768px) {
+      .filters-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .filter-actions {
+        grid-column: 1 / -1;
+        display: flex;
+        justify-content: stretch;
+      }
+
+      .btn-filter {
+        flex: 1;
+        justify-content: center;
+      }
+    }
+
+    /* Estilos estéticos para la sugerencia de precio */
+    .price-suggestion-badge {
+      position: absolute;
+      right: 10px;
+      top: 8px;
+      font-size: 10px;
+      font-weight: 700;
+      color: #3B7BC0;
+      background: #f0f7ff;
+      padding: 2px 6px;
+      border-radius: 6px;
+      border: 1px solid #dbe9f6;
+      pointer-events: none;
+      display: none;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      z-index: 5;
+    }
+
+    .form-inventario {
+      position: relative;
+    }
+
+    .form-inventario .price-suggestion-badge {
+      top: 8px;
+      right: 12px;
+    }
+  </style>
+
+</head>
+
+<body>
+
+  <div class="sidebar" id="sidebar">
+    <h2>SILDEMAR</h2>
+
+    <a href="dashboard.html">
+      <i class="fas fa-home"></i> Inicio
+    </a>
+
+    <a href="inventario.html">
+      <i class="fas fa-boxes"></i> Inventario
+    </a>
+
+    <a href="solicitudes.html">
+      <i class="fas fa-shopping-cart"></i> Solicitudes
+    </a>
+
+    <a href="historial_clientes.html">
+      <i class="fas fa-users"></i> Historial Clientes
+    </a>
+
+    <a href="reportes.html">
+      <i class="fas fa-file-pdf"></i> Reportes
+    </a>
+
+    <a href="perfil.html">
+      <i class="fas fa-user-edit"></i> Mi Perfil
+    </a>
+
+    <a href="../index.html" class="btn-logout" id="logout-btn">
+      <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+    </a>
+  </div>
+
+  <div id="modalEliminar" class="modal">
+    <div class="modal-box" style="background: white; color: #333;">
+      <h2>Eliminar Producto</h2>
+      <p>¿Seguro que deseas eliminar este producto?</p>
+      <div class="modal-buttons">
+        <button id="btnConfirmarEliminar" class="btn-danger">Eliminar</button>
+        <button id="btnCancelarEliminar" class="btn-secondary">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Editar Producto -->
+  <div id="modalEditar" class="modal">
+    <div class="modal-box" style="width: 800px; max-width: 90%; background: white; color: #333;">
+      <h2 style="margin-bottom: 5px;">Editar Producto</h2>
+      <p id="edit_codigo_display"
+        style="font-weight: bold; color: #3B7BC0; margin-bottom: 20px; font-size: 1.1rem; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+      </p>
+
+      <form id="form-editar">
+        <input type="hidden" id="edit_id">
+        <div style="display: flex; gap: 25px; flex-wrap: wrap;">
+
+          <!-- Lado Izquierdo: Campos -->
+          <div style="flex: 1; min-width: 300px;">
+            <div class="form-group-edit">
+              <label>Nombre del Repuesto:</label>
+              <input type="text" id="edit_nombre" required>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+              <div class="form-group-edit" style="flex: 1;">
+                <label>Marca Repuesto:</label>
+                <input type="text" id="edit_marca_repuesto" required>
+              </div>
+              <div class="form-group-edit" style="flex: 1;">
+                <label>Marca Vehículo:</label>
+                <input type="text" id="edit_marca_carro" required>
+              </div>
+              <div class="form-group-edit" style="flex: 1;">
+                <label>Modelo Vehículo:</label>
+                <input type="text" id="edit_modelo_vehiculo">
+              </div>
+            </div>
+
+            <div class="form-group-edit">
+              <label>Categoría:</label>
+              <select id="edit_categoria" onchange="verificarTransmision(this.value, 'edit_div_transmision')">
+                <option value="General">General</option>
+                <option value="Motor">Motor</option>
+                <option value="Frenos">Frenos</option>
+                <option value="Suspensión">Suspensión</option>
+                <option value="Eléctrico">Eléctrico</option>
+                <option value="Filtros">Filtros</option>
+                <option value="Transmisión">Transmisión</option>
+              </select>
+            </div>
+
+            <div id="edit_div_transmision" style="display:none;" class="form-group-edit">
+              <label>Tipo de Transmisión:</label>
+              <select id="edit_transmision">
+                <option value="No aplica">No aplica</option>
+                <option value="Automática">Automática</option>
+                <option value="Sincrónica">Sincrónica</option>
+              </select>
+            </div>
+
+            <div style="display:flex; gap:10px; margin-top:8px; align-items:center; flex-wrap:wrap;">
+              <input type="number" id="edit_anio_desde" placeholder="Desde" style="flex:1; min-width:80px;">
+              <input type="number" id="edit_anio_hasta" placeholder="Hasta" style="flex:1; min-width:80px;">
+              <label style="display:flex; align-items:center; gap:6px; margin:0;"><input type="checkbox" id="edit_anio_no_aplica"> No aplica</label>
+            </div>
+
+            <div style="display: flex; gap: 10px; position: relative;">
+              <div class="form-group-edit" style="flex: 1;">
+                <label>Precio de Compra ($):</label>
+                <input type="number" id="edit_compra" step="0.01" required>
+              </div>
+              <div class="form-group-edit" style="flex: 1; position: relative;">
+                <label>Precio de Venta ($):</label>
+                <input type="number" id="edit_precio" step="0.01" required>
+                <span id="edit-sugerencia-precio" class="price-suggestion-badge"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lado Derecho: Imagen -->
+          <div style="width: 250px; display: flex; flex-direction: column; align-items: center; gap: 10px;">
+            <label style="font-weight: bold; font-size: 14px; align-self: flex-start;">Imagen del Producto:</label>
+            <div id="edit_preview_container"
+              style="width: 100%; height: 200px; border: 1.5px dashed #ccc; border-radius: 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #f8f9fa;">
+              <img id="edit_imagen_preview" src="" alt="Preview"
+                style="max-width: 100%; max-height: 100%; object-fit: contain;">
+            </div>
+            <input type="file" id="edit_imagen" accept="image/*" style="font-size: 12px; width: 100%;">
+            <p style="font-size: 11px; color: #666;">Selecciona una nueva imagen para cambiarla</p>
+          </div>
+        </div>
+
+        <div class="modal-buttons" style="margin-top: 25px; border-top: 1px solid #eee; padding-top: 20px;">
+          <button type="submit" class="btn-blue" style="padding: 12px 30px;"><i class="fas fa-save"></i> Guardar
+            Cambios</button>
+          <button type="button" class="btn-secondary" onclick="cerrarModalEditar()"
+            style="padding: 12px 20px;">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Añadir Stock -->
+  <div id="modalStock" class="modal">
+    <div class="modal-box" style="background: white; color: #333;">
+      <h2>Añadir Stock</h2>
+      <form id="form-stock">
+        <p style="margin-bottom:15px; font-size:14px;">Añadiendo stock al producto <br><strong
+            id="stock_nombre_prod"></strong></p>
+        <input type="hidden" id="stock_id">
+        <label style="display:block; text-align:left; font-size:14px; margin-bottom:5px;">Cantidad a agregar:</label>
+        <input type="number" id="stock_cantidad" min="1" required placeholder="Ej. 10">
+        <div class="modal-buttons" style="margin-top: 15px;">
+          <button type="submit" class="btn-blue">Añadir</button>
+          <button type="button" class="btn-secondary" onclick="cerrarModalStock()">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <header>
+      <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
+      <h1><i class="fas fa-box"></i> Control de Inventario</h1>
+    </header>
+
+    <div class="content-box">
+      <h3>Agregar Nuevo Producto</h3>
+      <form class="form-inventario" id="form-producto">
+        <input type="text" id="codigo" placeholder="Código del Producto" required>
+        <input type="text" id="nombre" placeholder="Nombre del Producto" required>
+        <input type="text" id="marca_repuesto" placeholder="Marca del Producto (Bosch, NGK, Valeo)" required>
+        <input type="text" id="marca_carro" placeholder="Marca del Vehículo (Toyota, Ford)" required>
+        <input type="text" id="modelo_vehiculo" placeholder="Modelo del Vehículo (Corolla, Focus)">
+        <div style="display:flex; gap:10px; align-items:center; margin-bottom:8px; flex-wrap:wrap;">
+          <input type="number" id="anio_desde" placeholder="Año Desde" style="flex:1; min-width:100px;">
+          <input type="number" id="anio_hasta" placeholder="Año Hasta" style="flex:1; min-width:100px;">
+          <label style="display:flex; align-items:center; gap:6px; margin:0;"><input type="checkbox" id="anio_no_aplica"> No aplica</label>
+        </div>
+        <select id="categoria" onchange="verificarTransmision(this.value, 'div_transmision_nuevo')">
+          <option value="General">Categoría: General</option>
+          <option value="Motor">Categoría: Motor</option>
+          <option value="Frenos">Categoría: Frenos</option>
+          <option value="Suspensión">Categoría: Suspensión</option>
+          <option value="Eléctrico">Categoría: Eléctrico</option>
+          <option value="Filtros">Categoría: Filtros</option>
+          <option value="Transmisión">Categoría: Transmisión</option>
+        </select>
+        <div id="div_transmision_nuevo" style="display:none; width:100%;">
+          <label style="display:block; text-align:left; font-size:14px; margin-bottom:5px; margin-top:10px;">Tipo de
+            Transmisión:</label>
+          <select id="transmision" style="width:100%;">
+            <option value="No aplica">No aplica</option>
+            <option value="Automática">Automática</option>
+            <option value="Sincrónica">Sincrónica</option>
+          </select>
+        </div>
+        <input type="number" id="stock" placeholder="Cantidad inicial" required>
+        <div style="display: flex; gap: 15px; flex-wrap: wrap; position: relative;">
+          <div style="position: relative; flex: 1; min-width: 200px;">
+            <input type="number" id="compra" step="0.01" placeholder="Precio de Compra $" required style="width:100%;">
+          </div>
+          <div style="position: relative; flex: 1; min-width: 200px;">
+            <input type="number" id="precio" step="0.01" placeholder="Precio de Venta $" required style="width:100%;">
+            <span id="sugerencia-precio" class="price-suggestion-badge"></span>
+          </div>
+        </div>
+        <label style="display:block; text-align:left; font-size:14px; margin-bottom:5px; margin-top:10px;">Imagen del
+          Producto (Opcional)</label>
+        <input type="file" id="imagen" accept="image/*" style="margin-bottom: 15px;">
+        <button type="submit" class="btn-blue"><i class="fas fa-save"></i> Guardar</button>
+      </form>
+
+      <hr>
+
+      <!-- FILTROS MEJORADOS -->
+      <div class="filters-section">
+        <div class="filters-title">
+          <i class="fas fa-filter"></i> Filtros y Consulta
+        </div>
+        <div class="filters-grid">
+          <div class="filter-group">
+            <label><i class="fas fa-search"></i> Búsqueda Rápida</label>
+            <input type="text" id="barra-busqueda" placeholder="Buscar por nombre, código o marca..."
+              onkeyup="filtrarTabla()">
+          </div>
+          <div class="filter-group">
+            <label><i class="fas fa-tags"></i> Categoría</label>
+            <select id="selector-categoria" onchange="filtrarTabla()">
+              <option value="todos">Todas las Categorías</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label><i class="fas fa-chart-line"></i> Estado del Stock</label>
+            <select id="selector-filtro" onchange="filtrarTabla()">
+              <option value="todos">Todos los Productos</option>
+              <option value="bajo-stock">Bajo Stock (Menos de 5)</option>
+              <option value="sin-stock">Sin Stock (0 unidades)</option>
+            </select>
+          </div>
+          <div class="filter-actions">
+            <button class="btn-filter btn-filter-secondary" onclick="limpiarFiltros()">
+              <i class="fas fa-eraser"></i> Limpiar Filtros
+            </button>
+            <button class="btn-filter btn-filter-primary" onclick="filtrarTabla()">
+              <i class="fas fa-search"></i> Consultar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Producto</th>
+            <th>Marca Repuesto</th>
+            <th>Marca Vehículo</th>
+            <th>Modelo</th>
+            <th>Categoría</th>
+            <th>Transmisión</th>
+            <th>Stock</th>
+            <th>Compra</th>
+            <th>Venta</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-body">
+          <tr>
+            <td colspan="11" style="text-align:center;">Cargando información del servidor...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    function toggleSidebar() {
+      document.getElementById("sidebar").classList.toggle("active");
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      applySecurity();
+      cargarInventario();
+      
+      function configurarSugerencia(inputCompraId, spanSugerenciaId) {
+        const input = document.getElementById(inputCompraId);
+        const span = document.getElementById(spanSugerenciaId);
+        if (!input || !span) return;
+
+        input.addEventListener('input', function() {
+          const costo = parseFloat(this.value) || 0;
+          if (costo > 0) {
+            const sugerido = (costo * 1.30).toFixed(2);
+            span.innerText = 'Sug: $' + sugerido;
+            span.style.display = 'block';
+          } else {
+            span.style.display = 'none';
+          }
+        });
+      }
+
+      configurarSugerencia('compra', 'sugerencia-precio');
+      configurarSugerencia('edit_compra', 'edit-sugerencia-precio');
+    });
+
+    function applySecurity() {
+      const userData = JSON.parse(localStorage.getItem('usuario_actual'));
+      if (!userData || userData.rol !== 'Gerente Operacional') {
+        Swal.fire("Acceso denegado", "No tienes permisos para ver esta página.", "error").then(() => {
+          window.location.href = "../index.html";
+        });
+        return;
+      }
+    }
+
+    async function cargarInventario() {
+      try {
+        const rateRes = await fetch('../backend/get_reportes.php?action=get_rate');
+        const rateData = await rateRes.json();
+        const tasaDolar = parseFloat(rateData.tasa_dolar) || 1;
+
+        const response = await fetch('../backend/inventario.php?action=list');
+        const productos = await response.json();
+        const tbody = document.getElementById('tabla-body');
+        tbody.innerHTML = "";
+
+        if (productos.error) throw new Error(productos.error);
+        if (productos.success === false) throw new Error(productos.message);
+
+        window.productosGlobal = productos;
+
+        const categoriasEstaticas = ["General", "Motor", "Frenos", "Suspensión", "Eléctrico", "Filtros", "Transmisión"];
+        const selectorCategoria = document.getElementById('selector-categoria');
+        selectorCategoria.innerHTML = '<option value="todos">Todas las Categorías</option>';
+        categoriasEstaticas.forEach(cat => {
+          selectorCategoria.innerHTML += `<option value="${cat.toLowerCase()}">${cat}</option>`;
+        });
+
+        if (!Array.isArray(productos) || productos.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;">No hay registros en la base de datos.</td></tr>';
+          return;
+        }
+
+        productos.forEach(p => {
+          const stockVal = parseInt(p.stock_actual);
+          const stockClass = stockVal < 5 ? 'stock-alert' : 'stock-ok';
+          const codigoVal = p.codigo ? p.codigo : `PROD-${p.id_producto}`;
+          const compraUSD = parseFloat(p.compra) || 0;
+          const precioUSD = parseFloat(p.precio) || 0;
+          const compraBs = (compraUSD * tasaDolar).toFixed(2);
+          const precioBs = (precioUSD * tasaDolar).toFixed(2);
+          const modeloVeh = p.modelo_vehiculo || 'N/A';
+
+          tbody.innerHTML += `
+            <tr data-nombre="${p.nombre_producto.toLowerCase()} ${p.marca_repuesto.toLowerCase()} ${p.marca_carro.toLowerCase()} ${modeloVeh.toLowerCase()} ${codigoVal.toLowerCase()}" 
+                data-stock="${stockVal}" 
+                data-categoria="${(p.categoria || 'general').toLowerCase()}">
+              <td>${codigoVal}</td>
+              <td><strong>${p.nombre_producto}</strong></td>
+              <td>${p.marca_repuesto}</td>
+              <td>${p.marca_carro}</td>
+              <td>${modeloVeh}</td>
+              <td>${p.categoria || 'General'}</td>
+              <td>${p.transmision || 'No aplica'}</td>
+              <td class="${stockClass}">${stockVal}</td>
+              <td>Bs ${compraBs} <br><small style="color:#555;">($${compraUSD.toFixed(2)})</small></td>
+              <td>Bs ${precioBs} <br><small style="color:#555;">($${precioUSD.toFixed(2)})</small></td>
+              <td>
+                <button class="btn-action btn-edit" onclick="abrirModalEditar(${p.id_producto})" title="Editar"><i class="fas fa-edit"></i></button>
+                <button class="btn-action" style="color: #28a745;" onclick="abrirModalStock(${p.id_producto})" title="Añadir Stock"><i class="fas fa-plus-circle"></i></button>
+                <button class="btn-delete btn-action" onclick="eliminarProducto(${p.id_producto})" title="Eliminar"><i class="fas fa-trash"></i></button>
+               </td>
+            </tr>
+          `;
+        });
+      } catch (error) {
+        console.error("Backend error:", error);
+        document.getElementById('tabla-body').innerHTML = `<tr><td colspan="11" style="text-align:center; color:red;">Error: ${error.message}</td></tr>`;
+      }
+    }
+
+    document.getElementById('form-producto').onsubmit = async (e) => {
+      e.preventDefault();
+      const formData = new FormData();
+      formData.append('codigo', document.getElementById('codigo').value);
+      formData.append('nombre', document.getElementById('nombre').value);
+      formData.append('marca_repuesto', document.getElementById('marca_repuesto').value);
+      formData.append('marca_carro', document.getElementById('marca_carro').value);
+      formData.append('modelo_vehiculo', document.getElementById('modelo_vehiculo').value);
+      formData.append('categoria', document.getElementById('categoria').value);
+      formData.append('transmision', document.getElementById('transmision').value);
+      formData.append('stock', document.getElementById('stock').value);
+      
+      let anoVal = '';
+      if (document.getElementById('anio_no_aplica').checked) {
+        anoVal = 'No aplica';
+      } else {
+        const desde = document.getElementById('anio_desde').value.trim();
+        const hasta = document.getElementById('anio_hasta').value.trim();
+        if (desde && hasta) anoVal = `${desde}-${hasta}`;
+        else if (desde) anoVal = desde;
+        else if (hasta) anoVal = hasta;
+      }
+      formData.append('ano', anoVal);
+      formData.append('compra', document.getElementById('compra').value);
+      formData.append('precio', document.getElementById('precio').value);
+      
+      const imagenInput = document.getElementById('imagen');
+      if (imagenInput.files.length > 0) {
+        formData.append('imagen', imagenInput.files[0]);
+      }
+      
+      try {
+        const response = await fetch('../backend/inventario.php?action=create', { method: 'POST', body: formData });
+        const res = await response.json();
+        if (res.success) {
+          Swal.fire("¡Éxito!", "Registrado con éxito", "success");
+          e.target.reset();
+          cargarInventario();
+        } else {
+          Swal.fire("Error", res.message, "error");
+        }
+      } catch (error) {
+        Swal.fire("Error", "Error de comunicación con el servidor", "error");
+      }
+    };
+
+    function limpiarFiltros() {
+      document.getElementById('barra-busqueda').value = '';
+      document.getElementById('selector-categoria').value = 'todos';
+      document.getElementById('selector-filtro').value = 'todos';
+      filtrarTabla();
+    }
+
+    let productoEliminar = null;
+
+    function eliminarProducto(id) {
+      productoEliminar = id;
+      document.getElementById("modalEliminar").style.display = "flex";
+    }
+
+    function cerrarModalEliminar() {
+      document.getElementById("modalEliminar").style.display = "none";
+    }
+
+    document.getElementById("btnCancelarEliminar").onclick = cerrarModalEliminar;
+    document.getElementById("btnConfirmarEliminar").onclick = function () {
+      fetch(`../backend/inventario.php?action=delete&id=${productoEliminar}`)
+        .then(r => r.json())
+        .then(data => { if (data.success) { cerrarModalEliminar(); cargarInventario(); } });
+    };
+
+    function filtrarTabla() {
+      const busqueda = document.getElementById('barra-busqueda').value.toLowerCase();
+      const filtroStock = document.getElementById('selector-filtro').value;
+      const filtroCategoria = document.getElementById('selector-categoria').value;
+      const filas = document.querySelectorAll('#tabla-body tr');
+      filas.forEach(fila => {
+        const info = fila.getAttribute('data-nombre') || "";
+        const stock = parseInt(fila.getAttribute('data-stock')) || 0;
+        const categoriaFila = fila.getAttribute('data-categoria') || "";
+        const coincideBusqueda = info.includes(busqueda);
+        const coincideStock = (filtroStock === 'todos') || (filtroStock === 'bajo-stock' && stock < 5) || (filtroStock === 'sin-stock' && stock === 0);
+        const coincideCategoria = (filtroCategoria === 'todos') || (categoriaFila === filtroCategoria);
+        fila.style.display = (coincideBusqueda && coincideStock && coincideCategoria) ? '' : 'none';
+      });
+    }
+
+    document.getElementById('logout-btn').onclick = (e) => {
+      e.preventDefault();
+      localStorage.removeItem('usuario_actual');
+      window.location.href = "../index.html";
+    };
+
+    function abrirModalEditar(id) {
+      const p = window.productosGlobal.find(x => x.id_producto == id);
+      if (!p) return;
+
+      document.getElementById('edit_id').value = p.id_producto;
+      document.getElementById('edit_codigo_display').innerText = "Código: " + (p.codigo || `PROD-${p.id_producto}`);
+      document.getElementById('edit_nombre').value = p.nombre_producto || '';
+      document.getElementById('edit_marca_repuesto').value = p.marca_repuesto || '';
+      document.getElementById('edit_marca_carro').value = p.marca_carro || '';
+      document.getElementById('edit_modelo_vehiculo').value = p.modelo_vehiculo || '';
+      document.getElementById('edit_categoria').value = p.categoria || 'General';
+      document.getElementById('edit_transmision').value = p.transmision || 'No aplica';
+      document.getElementById('edit_compra').value = p.compra || 0;
+      document.getElementById('edit_precio').value = p.precio || 0;
+      
+      // Disparar evento para actualizar la sugerencia de precio
+      const event = new Event('input');
+      document.getElementById('edit_compra').dispatchEvent(event);
+      
+      const anioRaw = p.anio_carro || p.ano || '';
+      document.getElementById('edit_anio_desde').value = '';
+      document.getElementById('edit_anio_hasta').value = '';
+      document.getElementById('edit_anio_no_aplica').checked = false;
+      
+      if (anioRaw) {
+        const low = String(anioRaw).toLowerCase();
+        if (low === 'no aplica' || low === 'n/a') {
+          document.getElementById('edit_anio_no_aplica').checked = true;
+        } else if (anioRaw.includes('-')) {
+          const parts = anioRaw.split('-');
+          document.getElementById('edit_anio_desde').value = parts[0];
+          document.getElementById('edit_anio_hasta').value = parts[1];
+        } else {
+          document.getElementById('edit_anio_desde').value = anioRaw;
+        }
+      }
+
+      const preview = document.getElementById('edit_imagen_preview');
+      let rutaImagen = '../ima/default.jpg';
+
+      if (p.imagen && p.imagen !== 'default.jpg' && p.imagen !== 'null' && p.imagen !== '' && p.imagen !== 'undefined') {
+        let img = p.imagen;
+        img = img.replace(/^\.\.\/ima\/\.\.\/ima\//, '../ima/');
+        img = img.replace(/^ima\/ima\//, 'ima/');
+
+        if (img.startsWith('ima/')) {
+          rutaImagen = '../' + img;
+        } else if (img.startsWith('../')) {
+          rutaImagen = img;
+        } else if (img.startsWith('http')) {
+          rutaImagen = img;
+        } else {
+          rutaImagen = '../ima/' + img;
+        }
+
+        rutaImagen = rutaImagen.replace(/\.\.\/ima\/\.\.\/ima\//, '../ima/');
+        rutaImagen = rutaImagen.replace(/ima\/ima\//, 'ima/');
+      }
+
+      preview.src = rutaImagen;
+      preview.onerror = function () { this.src = '../ima/default.jpg'; };
+
+      verificarTransmision(document.getElementById('edit_categoria').value, 'edit_div_transmision');
+      document.getElementById("modalEditar").style.display = "flex";
+    }
+
+    document.getElementById('edit_imagen').onchange = function (evt) {
+      const [file] = this.files;
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          document.getElementById('edit_imagen_preview').src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+
+    function cerrarModalEditar() {
+      document.getElementById("modalEditar").style.display = "none";
+    }
+
+    document.getElementById('form-editar').onsubmit = async (e) => {
+      e.preventDefault();
+
+      const formData = new FormData();
+      formData.append('id_producto', document.getElementById('edit_id').value);
+      formData.append('nombre', document.getElementById('edit_nombre').value);
+      formData.append('marca_repuesto', document.getElementById('edit_marca_repuesto').value);
+      formData.append('marca_carro', document.getElementById('edit_marca_carro').value);
+      formData.append('modelo_vehiculo', document.getElementById('edit_modelo_vehiculo').value);
+      formData.append('transmision', document.getElementById('edit_transmision').value);
+      formData.append('categoria', document.getElementById('edit_categoria').value);
+      formData.append('compra', document.getElementById('edit_compra').value);
+      formData.append('precio', document.getElementById('edit_precio').value);
+
+      let anoEdit = '';
+      if (document.getElementById('edit_anio_no_aplica').checked) {
+        anoEdit = 'No aplica';
+      } else {
+        const desde = document.getElementById('edit_anio_desde').value.trim();
+        const hasta = document.getElementById('edit_anio_hasta').value.trim();
+        if (desde && hasta) anoEdit = `${desde}-${hasta}`;
+        else if (desde) anoEdit = desde;
+        else if (hasta) anoEdit = hasta;
+      }
+      formData.append('ano', anoEdit);
+
+      const imgInput = document.getElementById('edit_imagen');
+      if (imgInput.files.length > 0) {
+        formData.append('imagen', imgInput.files[0]);
+      }
+
+      try {
+        const response = await fetch('../backend/inventario.php?action=update', {
+          method: 'POST',
+          body: formData
+        });
+        const res = await response.json();
+        if (res.success) {
+          Swal.fire("¡Actualizado!", "Producto actualizado con éxito", "success");
+          cerrarModalEditar();
+          cargarInventario();
+        } else {
+          Swal.fire("Error", res.message, "error");
+        }
+      } catch (error) {
+        Swal.fire("Error", "Error de comunicación con el servidor", "error");
+      }
+    };
+
+    function abrirModalStock(id) {
+      const p = window.productosGlobal.find(x => x.id_producto == id);
+      if (!p) return;
+      document.getElementById('stock_id').value = p.id_producto;
+      const codigoVal = p.codigo || `PROD-${p.id_producto}`;
+      document.getElementById('stock_nombre_prod').innerText = p.nombre_producto + " (" + codigoVal + ")";
+      document.getElementById('stock_cantidad').value = "";
+      document.getElementById("modalStock").style.display = "flex";
+    }
+
+    function cerrarModalStock() {
+      document.getElementById("modalStock").style.display = "none";
+    }
+
+    document.getElementById('form-stock').onsubmit = async (e) => {
+      e.preventDefault();
+      const datos = {
+        id_producto: document.getElementById('stock_id').value,
+        cantidad: document.getElementById('stock_cantidad').value
+      };
+      try {
+        const response = await fetch('../backend/inventario.php?action=add_stock', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(datos)
+        });
+        const res = await response.json();
+        if (res.success) {
+          Swal.fire("¡Añadido!", "Stock añadido con éxito", "success");
+          cerrarModalStock();
+          cargarInventario();
+        } else {
+          Swal.fire("Error", res.message, "error");
+        }
+      } catch (error) {
+        Swal.fire("Error", "Error de comunicación con el servidor", "error");
+      }
+    };
+
+    function verificarTransmision(valor, targetId) {
+      const div = document.getElementById(targetId);
+      if (valor === "Transmisión") {
+        div.style.display = "block";
+      } else {
+        div.style.display = "none";
+        const selectTransmision = div.querySelector('select');
+        if (selectTransmision) selectTransmision.value = "No aplica";
+      }
+    }
+  </script>
+</body>
+
+</html>

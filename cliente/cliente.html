@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Catálogo Sildemar | Gestión de Pedidos</title>
+
+    <link rel="stylesheet" href="../css/cliente.css?v=2">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f4f6f9;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: #3B7BC0;
+            color: white;
+            padding: 15px 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h2 {
+            font-size: 1.3rem;
+        }
+
+        .header-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .tasa-display {
+            background: rgba(255,255,255,0.2);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+
+        .cliente-layout {
+            display: flex;
+            gap: 20px;
+            max-width: 1300px;
+            margin: 20px auto;
+            padding: 0 20px;
+            align-items: flex-start;
+        }
+
+        main {
+            flex: 3;
+            min-width: 0;
+        }
+
+        aside {
+            flex: 1;
+            position: sticky;
+            top: 90px;
+            align-self: flex-start;
+            max-width: 320px;
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 25px;
+        }
+
+        .filter-grid input,
+        .filter-grid select,
+        .filter-grid button {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            font-size: 14px;
+        }
+
+        .filter-grid button {
+            background: #e9ecef;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .filter-grid button:hover {
+            background: #3B7BC0;
+            color: white;
+        }
+
+        .catalog {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .product-card {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            padding: 20px;
+            border: 1px solid #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+            border-color: #3B7BC0;
+        }
+
+        .product-img {
+            width: 100%;
+            height: 140px;
+            object-fit: contain;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            padding: 10px;
+        }
+
+        .brand-tag {
+            color: #888;
+            font-size: 0.75em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .product-title {
+            color: #333;
+            font-size: 0.95em;
+            margin: 10px 0;
+            font-weight: 600;
+            line-height: 1.4;
+            min-height: 40px;
+        }
+
+        .product-price-tag {
+            color: #28a745;
+            font-size: 1.2em;
+            font-weight: 700;
+            display: block;
+            margin: 10px 0;
+        }
+
+        .product-price-tag small {
+            font-size: 0.6em;
+            color: #666;
+        }
+
+        .btn-add-cart {
+            background: #3B7BC0;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-add-cart:hover {
+            background: #2F639A;
+            transform: scale(1.02);
+        }
+
+        .cart-card {
+            background: white;
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border: 1px solid #e1e5eb;
+        }
+
+        .cart-card h3 {
+            margin-top: 0;
+            color: #3B7BC0;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 12px;
+            font-size: 1.2rem;
+        }
+
+        .cart-items-container {
+            max-height: 350px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+        }
+
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .cart-item-info {
+            flex: 1;
+        }
+
+        .cart-item-name {
+            font-weight: 600;
+            color: #333;
+            font-size: 0.85rem;
+        }
+
+        .cart-item-details {
+            font-size: 0.75rem;
+            color: #666;
+        }
+
+        .btn-remove {
+            background: #ffe3e3;
+            color: #e03131;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .btn-remove:hover {
+            background: #ffc9c9;
+            transform: scale(1.05);
+        }
+
+        .total {
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-align: right;
+            margin: 15px 0;
+            padding-top: 10px;
+            border-top: 2px solid #f0f0f0;
+            color: #28a745;
+        }
+
+        .total small {
+            font-size: 0.7rem;
+            color: #666;
+            display: block;
+        }
+
+        #btn-order {
+            width: 100%;
+            padding: 14px;
+            background: #3B7BC0;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1rem;
+        }
+
+        #btn-order:hover:not(:disabled) {
+            background: #2F639A;
+            transform: translateY(-2px);
+        }
+
+        #btn-order:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h2 {
+            color: #3B7BC0;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .modal-content input {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .btn-confirm {
+            background: #3B7BC0;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .btn-confirm:hover {
+            background: #2F639A;
+        }
+
+        .btn-cancel {
+            background: #e9ecef;
+            color: #333;
+            border: 1px solid #ddd;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .btn-cancel:hover {
+            background: #dde0e3;
+        }
+
+        .detalle-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr;
+            gap: 20px;
+            text-align: left;
+        }
+
+        .det-img {
+            width: 100%;
+            height: auto;
+            object-fit: contain;
+            border-radius: 12px;
+            background: #f8f9fa;
+            padding: 10px;
+        }
+
+        .det-info h3 {
+            color: #3B7BC0;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .det-info p {
+            margin: 8px 0;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #f0f0f0;
+            word-break: break-word;
+        }
+
+        .det-precio {
+            font-size: 1.4rem;
+            color: #28a745;
+            font-weight: bold;
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        footer {
+            background: #3B7BC0;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            margin-top: 40px;
+            font-size: 0.8rem;
+        }
+
+        @media (max-width: 900px) {
+            .cliente-layout {
+                flex-direction: column;
+            }
+            
+            aside {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                top: auto;
+                z-index: 99;
+                max-width: 100%;
+                background: white;
+                box-shadow: 0 -4px 15px rgba(0,0,0,0.1);
+                border-radius: 16px 16px 0 0;
+                max-height: 60vh;
+                overflow-y: auto;
+                transform: translateY(calc(100% - 55px));
+                transition: transform 0.3s ease;
+            }
+            
+            aside.open {
+                transform: translateY(0);
+            }
+            
+            .cart-card {
+                border-radius: 16px 16px 0 0;
+            }
+            
+            .cart-card h3 {
+                cursor: pointer;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            
+            .cart-card h3::after {
+                content: "▲";
+                font-size: 12px;
+                transition: transform 0.3s;
+            }
+            
+            aside.open .cart-card h3::after {
+                content: "▼";
+            }
+            
+            .catalog {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 15px;
+                margin-bottom: 80px;
+            }
+            
+            footer {
+                margin-bottom: 60px;
+            }
+        }
+
+        @media (max-width: 550px) {
+            .catalog {
+                grid-template-columns: 1fr;
+            }
+            
+            .detalle-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .filter-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <img src="../admin_sistema/logotipo.png" alt="Logo Sildemar" style="height: 50px; width: auto; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.1));">
+            <h2>Sildemar Repuestos</h2>
+        </div>
+        <div class="header-info">
+            <span class="tasa-display" id="tasa-header-display">Tasa: Cargando...</span>
+            <span>Catálogo de Cliente</span>
+        </div>
+    </div>
+
+    <div class="cliente-layout">
+        <main>
+            <div class="filter-grid">
+                <input type="text" id="srcName" placeholder="Buscar repuesto..." oninput="filtrar()">
+                <select id="srcMarca" onchange="filtrar()">
+                    <option value="">Marca del repuesto</option>
+                </select>
+                <select id="srcMarcaVehiculo" onchange="filtrar()">
+                    <option value="">Marca de vehículo</option>
+                </select>
+                <input type="text" id="srcModeloVehiculo" placeholder="Modelo de vehículo" oninput="filtrar()">
+                <select id="srcTrans" onchange="filtrar()">
+                    <option value="">Transmisión</option>
+                    <option value="Automática">Automática</option>
+                    <option value="Sincrónica">Sincrónica</option>
+                </select>
+                <input type="text" id="srcYear" placeholder="Año (ej. 2010 o 2010-2015)" oninput="filtrar()">
+                <button onclick="reset()">Limpiar</button>
+            </div>
+
+            <div class="catalog" id="catalog-list"></div>
+        </main>
+
+        <aside id="cartAside">
+            <div class="cart-card">
+                <h3 id="cartTitle">Tu Pedido</h3>
+                <div class="cart-items-container" id="cart-items">
+                    <p style="text-align:center;color:#888; padding:20px;">No hay productos añadidos</p>
+                </div>
+                <div class="total" id="total-price">Total: $0.00</div>
+                <button id="btn-order" onclick="abrirCedulaModal()" disabled>
+                    CONFIRMAR COMPRA
+                </button>
+            </div>
+        </aside>
+    </div>
+
+    <!-- MODALES -->
+    <div class="modal" id="cedulaModal">
+        <div class="modal-content">
+            <h2>Verificación de Cliente</h2>
+            <p>Ingresa tu cédula</p>
+            <input type="text" id="cedulaInput" placeholder="Ej: V12345678" maxlength="15">
+            <div class="modal-buttons">
+                <button class="btn-confirm" onclick="verificarCedula()">Continuar</button>
+                <button class="btn-cancel" onclick="cerrarCedula()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="registroModal">
+        <div class="modal-content">
+            <h2>Registro de Cliente</h2>
+            <p>No encontramos tu cédula</p>
+            <input type="text" id="regNombre" placeholder="Nombre completo"
+                oninput="this.value = this.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '')">
+            <input type="text" id="regDireccion" placeholder="Dirección">
+            <input type="text" id="regTelefono" placeholder="Teléfono"
+                oninput="this.value = this.value.replace(/[^0-9]/g, '')" maxlength="15">
+            <div class="modal-buttons">
+                <button class="btn-confirm" onclick="registrarCliente()">Guardar</button>
+                <button class="btn-cancel" onclick="cerrarRegistro()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="detalleModal">
+        <div class="modal-content" style="max-width: 800px;">
+            <h2>Detalle del Repuesto</h2>
+            <div class="detalle-grid">
+                <img id="detImg" src="" class="det-img" onerror="this.onerror=null; this.src='../Ima/default.jpg'">
+                <div class="det-info">
+                    <h3 id="detNombre"></h3>
+                    <p><strong>Código:</strong> <span id="detCodigo"></span></p>
+                    <p><strong>Marca Repuesto:</strong> <span id="detMarcaRep"></span></p>
+                    <p><strong>Vehículo:</strong> <span id="detVehiculo"></span></p>
+                    <p><strong>Modelo:</strong> <span id="detModelo"></span></p>
+                    <p><strong>Año:</strong> <span id="detAnio"></span></p>
+                    <p><strong>Transmisión:</strong> <span id="detTrans"></span></p>
+                    <p><strong>Stock:</strong> <span id="detStock"></span></p>
+                    <div id="detPrecio" class="det-precio"></div>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="cerrarDetalle()">Atrás</button>
+                <button class="btn-confirm" id="btnDetAgregar">Añadir al Carrito</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="cantidadModal">
+        <div class="modal-content">
+            <h2 id="modalCantTitle">Añadir al Carrito</h2>
+            <p id="modalCantText"></p>
+            <input type="number" id="cantidadInput" min="1" value="1">
+            <div class="modal-buttons">
+                <button class="btn-confirm" onclick="confirmarCantidad()">Añadir al Carrito</button>
+                <button class="btn-cancel" onclick="cerrarCantidad()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p><strong>Autorepuestos Sildemar M.V.R. C.A.</strong></p>
+        <p>RIF: J-30903326-3 | © 2026 Todos los derechos reservados</p>
+    </footer>
+
+    <script>
+        let productos = [];
+        let carrito = [];
+        let cedulaActual = null;
+        let tasaDolar = 0;
+
+        function toggleCartMobile() {
+            const aside = document.getElementById('cartAside');
+            if (window.innerWidth <= 900) {
+                aside.classList.toggle('open');
+            }
+        }
+
+        document.getElementById('cartTitle')?.addEventListener('click', toggleCartMobile);
+
+        async function cargarProductos() {
+            try {
+                const response = await fetch('../backend/catalogo.php?action=list&t=' + Date.now());
+                const text = await response.text();
+                const data = JSON.parse(text);
+
+                if (data.success) {
+                    tasaDolar = data.tasa_dolar;
+                    document.getElementById('tasa-header-display').innerHTML = `Tasa BCV del día: Bs ${tasaDolar}`;
+
+                    productos = data.productos.map(p => {
+                        let nombreFoto = (p.imagen && p.imagen !== 'default.jpg') ? p.imagen : 'default.jpg';
+                        return {
+                            id: parseInt(p.id_producto),
+                            codigo: p.codigo || `PROD-${p.id_producto}`,
+                            nombre: p.nombre_producto,
+                            marca_repuesto: p.marca_repuesto || 'N/A',
+                            marca_carro: p.marca_carro || 'Universal',
+                            modelo_vehiculo: p.modelo_vehiculo || 'N/A',
+                            anio_carro: p.anio_carro || 'N/A',
+                            transmision: p.transmision || 'No aplica',
+                            categoria: p.categoria || 'General',
+                            precio: parseFloat(p.precio),
+                            precio_bs: parseFloat(p.precio_bs),
+                            stock: parseInt(p.stock_actual || 0),
+                            img: `../ima/${nombreFoto.toLowerCase()}`
+                        };
+                    });
+                    poblarFiltros();
+                    render();
+                } else {
+                    document.getElementById("catalog-list").innerHTML = `<p style="color:red;">${data.message}</p>`;
+                }
+            } catch (e) {
+                console.error(e);
+                document.getElementById("catalog-list").innerHTML = `<p style="color:red;">Error de conexión con el servidor</p>`;
+            }
+        }
+
+        function poblarFiltros() {
+            const marcasRep = [...new Set(productos.map(p => p.marca_repuesto))].filter(x => x && x !== 'N/A').sort();
+            const marcasVeh = [...new Set(productos.map(p => p.marca_carro))].filter(x => x && x !== 'Universal').sort();
+            // const anios = [...new Set(productos.map(p => p.anio_carro))].filter(x => x && x !== 'N/A').sort((a,b) => b-a); // Ya no se usa para un select
+
+            document.getElementById("srcMarca").innerHTML = '<option value="">Marca del repuesto</option>' + marcasRep.map(m => `<option value="${m}">${m}</option>`).join("");
+            document.getElementById("srcMarcaVehiculo").innerHTML = '<option value="">Marca de vehículo</option>' + marcasVeh.map(m => `<option value="${m}">${m}</option>`).join("");
+            // document.getElementById("srcYear").innerHTML = '<option value="">Año</option>' + anios.map(a => `<option value="${a}">${a}</option>`).join(""); // Ya no se usa para un select
+        }
+
+        function render(data = productos) {
+            const list = document.getElementById("catalog-list");
+            if (data.length === 0) {
+                list.innerHTML = `<p style="text-align:center; grid-column:1/-1;">No se encontraron productos con estos filtros.</p>`;
+                return;
+            }
+            list.innerHTML = data.map(p => `
+                <div class="product-card" onclick="verDetalle(${p.id})">
+                    <img src="${p.img}" class="product-img" onerror="this.src='../ima/default.jpg'">
+                    <span class="brand-tag">${p.marca_carro}</span>
+                    <h4 class="product-title">${p.nombre}</h4>
+                    <strong class="product-price-tag">$${p.precio.toFixed(2)}<br><small>(Bs ${p.precio_bs.toFixed(2)})</small></strong>
+                    <button class="btn-add-cart" onclick="event.stopPropagation(); agregar(${p.id})">
+                        <i class="fas fa-cart-plus"></i> Añadir
+                    </button>
+                </div>
+            `).join("");
+        }
+
+        function verDetalle(id) {
+            const p = productos.find(prod => prod.id === id);
+            if (!p) return;
+
+            document.getElementById("detImg").src = p.img;
+            document.getElementById("detNombre").innerText = p.nombre;
+            document.getElementById("detCodigo").innerText = p.codigo;
+            document.getElementById("detMarcaRep").innerText = p.marca_repuesto;
+            document.getElementById("detVehiculo").innerText = p.marca_carro;
+            document.getElementById("detModelo").innerText = p.modelo_vehiculo;
+            document.getElementById("detAnio").innerText = p.anio_carro;
+            document.getElementById("detTrans").innerText = p.transmision;
+            document.getElementById("detStock").innerText = p.stock;
+            document.getElementById("detPrecio").innerHTML = `$${p.precio.toFixed(2)}<br><small>(Bs ${p.precio_bs.toFixed(2)})</small>`;
+
+            document.getElementById("btnDetAgregar").onclick = () => {
+                cerrarDetalle();
+                agregar(id);
+            };
+            document.getElementById("detalleModal").style.display = "flex";
+        }
+
+        function cerrarDetalle() {
+            document.getElementById("detalleModal").style.display = "none";
+        }
+
+        let productoSeleccionado = null;
+
+        function agregar(id) {
+            const prod = productos.find(p => p.id === id);
+            if (!prod) return;
+            productoSeleccionado = prod;
+            document.getElementById("modalCantTitle").innerText = `Añadir ${prod.nombre}`;
+            document.getElementById("modalCantText").innerHTML = `Stock disponible: ${prod.stock} unidades`;
+            document.getElementById("cantidadInput").value = 1;
+            document.getElementById("cantidadInput").max = prod.stock;
+            document.getElementById("cantidadModal").style.display = "flex";
+        }
+
+        function cerrarCantidad() {
+            document.getElementById("cantidadModal").style.display = "none";
+            productoSeleccionado = null;
+        }
+
+        function confirmarCantidad() {
+            const prod = productoSeleccionado;
+            if (!prod) return;
+
+            let cantidad = parseInt(document.getElementById("cantidadInput").value);
+            if (isNaN(cantidad) || cantidad <= 0) {
+                Swal.fire('Cantidad Inválida', 'Por favor, ingresa una cantidad numérica válida mayor a 0.', 'warning');
+                return;
+            }
+
+            const existe = carrito.find(p => p.id === prod.id);
+            const cantidadEnCarrito = existe ? existe.cant : 0;
+
+            if (cantidadEnCarrito + cantidad > prod.stock) {
+                Swal.fire('Stock Insuficiente', `¡Lo sentimos! Solo tenemos ${prod.stock} unidades de este producto en inventario.`, 'error');
+                return;
+            }
+
+            if (existe) {
+                existe.cant += cantidad;
+            } else {
+                carrito.push({ ...prod, cant: cantidad });
+            }
+
+            actualizarCarrito();
+            cerrarCantidad();
+        }
+
+        function eliminar(id) {
+            carrito = carrito.filter(p => p.id !== id);
+            actualizarCarrito();
+        }
+
+        function actualizarCarrito() {
+            const items = document.getElementById("cart-items");
+            const btn = document.getElementById("btn-order");
+
+            if (carrito.length === 0) {
+                items.innerHTML = '<p style="text-align:center;color:#888; padding:20px;">No hay productos añadidos</p>';
+                document.getElementById("total-price").innerHTML = "Total: $0.00";
+                btn.disabled = true;
+                return;
+            }
+
+            items.innerHTML = carrito.map(p => `
+                <div class="cart-item">
+                    <div class="cart-item-info">
+                        <div class="cart-item-name">${p.nombre}</div>
+                        <div class="cart-item-details">
+                            ${p.cant} x $${p.precio.toFixed(2)}
+                            <br><small>Bs ${(p.precio_bs * p.cant).toFixed(2)}</small>
+                        </div>
+                    </div>
+                    <div class="cart-item-actions">
+                        <button class="btn-remove" onclick="eliminar(${p.id})">✕</button>
+                    </div>
+                </div>
+            `).join("");
+
+            const totalUSD = carrito.reduce((s, p) => s + (p.precio * p.cant), 0);
+            
+            if (tasaDolar > 0) {
+                const totalBs = (totalUSD * tasaDolar).toLocaleString('es-VE', { 
+                    minimumFractionDigits: 2, 
+                    maximumFractionDigits: 2 
+                });
+                document.getElementById("total-price").innerHTML = `
+                    Total: $${totalUSD.toFixed(2)}
+                    <small>Bs. ${totalBs}</small>
+                `;
+            } else {
+                document.getElementById("total-price").innerHTML = `Total: $${totalUSD.toFixed(2)}`;
+            }
+
+            btn.disabled = false;
+        }
+
+        function filtrar() {
+            const nombre = document.getElementById("srcName").value.toLowerCase();
+            const marcaRep = document.getElementById("srcMarca").value;
+            const marcaVeh = document.getElementById("srcMarcaVehiculo").value;
+            const modeloVehInput = document.getElementById("srcModeloVehiculo").value.toLowerCase();
+            const trans = document.getElementById("srcTrans").value;
+            const anioInput = document.getElementById("srcYear").value.toLowerCase(); // Ahora es un input de texto
+
+            const f = productos.filter(p =>
+                p.nombre.toLowerCase().includes(nombre) &&
+                (marcaRep === "" || p.marca_repuesto === marcaRep) &&
+                (marcaVeh === "" || p.marca_carro === marcaVeh) &&
+                (modeloVehInput === "" || (p.modelo_vehiculo || "").toLowerCase().includes(modeloVehInput)) &&
+                (trans === "" || p.transmision === trans) && // Filtro de transmisión
+                (anioInput === "" || (String(p.anio_carro) || "").toLowerCase().includes(anioInput)) // Nuevo filtro de año
+            );
+
+            render(f);
+        }
+
+        function reset() {
+            document.getElementById("srcName").value = "";
+            document.getElementById("srcMarca").value = "";
+            document.getElementById("srcMarcaVehiculo").value = "";
+            document.getElementById("srcModeloVehiculo").value = "";
+            document.getElementById("srcTrans").value = "";
+            document.getElementById("srcYear").value = "";
+            render();
+        }
+
+        function abrirCedulaModal() { document.getElementById("cedulaModal").style.display = "flex"; }
+        function cerrarCedula() { document.getElementById("cedulaModal").style.display = "none"; }
+        function cerrarRegistro() { document.getElementById("registroModal").style.display = "none"; }
+
+        async function enviarPedido(nombre, direccion = null, telefono = null) {
+            if (carrito.length === 0) {
+                Swal.fire('Error', 'El carrito está vacío', 'warning');
+                return false;
+            }
+
+            const payload = {
+                cedula: cedulaActual,
+                nombre: nombre || "Cliente Frecuente", 
+                direccion: direccion,
+                telefono: telefono,
+                carrito: carrito.map(p => ({
+                    id_producto: p.id,
+                    cant: p.cant,
+                    precio: p.precio
+                }))
+            };
+
+            try {
+                const btn = document.getElementById("btn-order");
+                btn.disabled = true;
+                btn.innerText = "PROCESANDO...";
+
+                const res = await fetch('../backend/catalogo.php?action=confirmar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    window.ultimoPedido = {
+                        cliente: nombre || "Cliente Frecuente",
+                        carrito: JSON.parse(JSON.stringify(carrito)),
+                        tasa: tasaDolar,
+                        codigoSolicitud: data.codigo_solicitud || ('SOL-' + Date.now())
+                    };
+                    carrito = [];
+                    actualizarCarrito();
+                    cargarProductos();
+                    return true; 
+                } else {
+                    Swal.fire('Error', data.message || "No se pudo procesar el pedido", 'error');
+                    return false;
+                }
+            } catch (error) {
+                Swal.fire('Error', 'Problema de conexión', 'error');
+                return false;
+            } finally {
+                const btn = document.getElementById("btn-order");
+                btn.disabled = carrito.length === 0;
+                btn.innerText = "CONFIRMAR COMPRA";
+            }
+        }
+
+        function mostrarAlertaExito() {      
+    if (!window.ultimoPedido) {
+        console.error("No hay datos del pedido");
+        return;
+    }
+
+    const cliente = window.ultimoPedido.cliente;
+    const codigoSolicitud = window.ultimoPedido.codigoSolicitud || ('SOL-' + Date.now().toString().slice(-8));
+    const carrito = window.ultimoPedido.carrito;
+
+    const totalUSD = carrito.reduce((sum, p) => sum + (p.precio * p.cant), 0);
+    const totalBs = totalUSD * tasaDolar;
+
+    const listaProductos = carrito.map(p =>
+        `• ${p.cant}x ${p.nombre} - $${p.precio.toFixed(2)}`
+    ).join('%0A');
+
+    const numeroWhatsApp = '584142149796';
+
+    const mensaje = `¡Hola! Soy ${cliente} y quiero hacer un pedido:%0A%0A*Código de solicitud:* ${codigoSolicitud}%0A%0A*Productos solicitados:*%0A${listaProductos}%0A%0A*Total en USD:* $${totalUSD.toFixed(2)}%0A*Total en Bs:* Bs ${totalBs.toLocaleString('es-VE', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    })}%0A%0AGracias, quedo atento a su confirmación.`;
+
+    const urlWhatsApp = `https://wa.me/${numeroWhatsApp}?text=${mensaje}`;
+
+    const productosHTML = carrito.map(p => `
+        <div style="
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            padding:8px 0;
+            border-bottom:1px solid #f0f0f0;
+        ">
+            <div>
+                <strong>${p.cant}x</strong> ${p.nombre}
+            </div>
+            <div style="color:#28a745; font-weight:bold;">
+                $${(p.precio * p.cant).toFixed(2)}
+            </div>
+        </div>
+    `).join('');
+
+    Swal.fire({
+        width: 750,
+        background: '#ffffff',
+        title: `
+            <div style="display:flex; align-items:center; justify-content:center; gap:10px;">
+                <span style="
+                    background:#28a745;
+                    color:white;
+                    width:40px;
+                    height:40px;
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+                    border-radius:50%;
+                    font-size:22px;
+                ">✓</span>
+                <span style="color:#3B7BC0;">Pedido Reservado</span>
+            </div>
+        `,
+        html: `
+            <div style="text-align:left; font-family:Arial, sans-serif;">
+
+                <div style="
+                    background:linear-gradient(135deg, #3B7BC0, #2F639A);
+                    color:white;
+                    padding:15px;
+                    border-radius:12px;
+                    margin-bottom:20px;
+                    text-align:center;
+                ">
+                    <p style="margin:0; font-size:14px;">Código de Solicitud</p>
+                    <h2 style="margin:8px 0 0 0; letter-spacing:2px;">${codigoSolicitud}</h2>
+                </div>
+
+                <div style="
+                    background:#f8f9fa;
+                    padding:15px;
+                    border-radius:10px;
+                    margin-bottom:15px;
+                ">
+                    <p style="margin:0 0 8px 0;">
+                        <strong>Cliente:</strong> ${cliente}
+                    </p>
+                    <p style="margin:0; color:#e67e22;">
+                        ⏰ Dispones de <strong>24 horas</strong> para retirar tu pedido.
+                    </p>
+                </div>
+
+                <h3 style="color:#3B7BC0; margin-bottom:10px;">🛒 Resumen del Pedido</h3>
+
+                <div style="
+                    max-height:180px;
+                    overflow-y:auto;
+                    background:white;
+                    border:1px solid #eee;
+                    border-radius:10px;
+                    padding:10px;
+                ">
+                    ${productosHTML}
+                </div>
+
+                <div style="
+                    margin-top:15px;
+                    background:#e8f5e9;
+                    padding:15px;
+                    border-radius:10px;
+                ">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                        <strong>Total USD:</strong>
+                        <strong style="color:#28a745;">$${totalUSD.toFixed(2)}</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <strong>Total Bs:</strong>
+                        <strong style="color:#28a745;">Bs ${totalBs.toLocaleString('es-VE', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        })}</strong>
+                    </div>
+                </div>
+
+                <div style="
+                    margin-top:18px;
+                    background:#f1f8ff;
+                    padding:12px;
+                    border-left:4px solid #25D366;
+                    border-radius:8px;
+                    font-size:13px;
+                    color:#444;
+                ">
+                    💬 Al presionar <strong>Enviar WhatsApp</strong>, se enviará automáticamente tu solicitud con todos los detalles.
+                </div>
+
+            </div>
+        `,
+        showCancelButton: true,
+        showDenyButton: true,
+
+        confirmButtonText: '💬 Enviar WhatsApp',
+        denyButtonText: '📄 Descargar PDF',
+        cancelButtonText: 'Cerrar',
+
+        confirmButtonColor: '#25D366',
+        denyButtonColor: '#e74c3c',
+        cancelButtonColor: '#6e7881',
+
+        reverseButtons: true,
+
+        customClass: {
+            popup: 'rounded-modal'
+        },
+
+        preConfirm: () => {
+            window.open(urlWhatsApp, '_blank');
+            return false; // Evita que el modal se cierre
+        },
+        preDeny: () => {
+            exportarComprobantePDF();
+            return false; // Evita que el modal se cierre
+        }
+
+    }).then((result) => {
+        // El modal se cierra normalmente al pulsar "Cerrar" (cancel)
+    }).catch(error => {
+        console.error("Error en mostrarAlertaExito:", error);
+    });
+}
+
+        function exportarComprobantePDF() {
+            if (!window.ultimoPedido) return;
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const p = window.ultimoPedido;
+            const ahora = new Date();
+            const fecha = ahora.toLocaleDateString();
+            const hora = ahora.toLocaleTimeString();
+            const nroControl = "RES-" + ahora.getTime();
+
+            try { doc.addImage('../Admin/logo.png', 'PNG', 14, 10, 25, 25); } catch(e) { console.warn("Logo no encontrado"); }
+
+            doc.setFontSize(18);
+            doc.text("Sildemar - Comprobante de Reserva", 45, 20);
+            doc.setFontSize(10);
+            doc.text(`tasa de cambio (${p.tasa.toFixed(2)})`, doc.internal.pageSize.width - 60, 35);
+
+            const tableBody = p.carrito.map(item => [
+                item.codigo,
+                item.categoria || 'General',
+                item.nombre,
+                item.cant,
+                `$${item.precio.toFixed(2)}`,
+                `Bs ${(item.precio * p.tasa).toFixed(2)}`
+            ]);
+
+            doc.autoTable({
+                head: [['Código', 'Categoría', 'Producto', 'Cant.', 'Precio ($)', 'Precio (Bs)']],
+                body: tableBody,
+                startY: 40,
+                theme: 'striped',
+                headStyles: { fillColor: [59, 123, 192] },
+                didDrawPage: function (data) {
+                    const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
+                    const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
+                    
+                    doc.setFontSize(8);
+                    doc.setTextColor(100);
+                    doc.text(`Realizado por: ${p.cliente}`, pageWidth - 75, pageHeight - 25);
+                    doc.text(`Nro. Control: ${nroControl}`, pageWidth - 75, pageHeight - 20);
+                    doc.text(`Fecha: ${fecha}`, pageWidth - 75, pageHeight - 15);
+                    doc.text(`Hora: ${hora}`, pageWidth - 75, pageHeight - 10);
+                }
+            });
+
+            const totalPages = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                doc.setPage(i);
+                const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
+                const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
+                doc.text(`(${i},${totalPages})`, pageWidth / 2 - 10, pageHeight - 10);
+            }
+
+            doc.save(`Sildemar_Reserva_${p.cliente.replace(/ /g, '_')}_${fecha.replace(/\//g, '-')}.pdf`);
+        }
+
+        async function verificarCedula() {
+            const ced = document.getElementById("cedulaInput").value.trim();
+            if (!ced) { Swal.fire('Cédula Requerida', 'Ingresa una cédula', 'warning'); return; }
+            if (!/^[VPE]\d+$/.test(ced)) { Swal.fire('Formato Inválido', 'Debe incluir la letra inicial (Ej: V12345678)', 'warning'); return; }
+            cedulaActual = ced;
+
+            try {
+                const res = await fetch(`../backend/catalogo.php?action=check_cedula&cedula=${ced}`);
+                const data = await res.json();
+                cerrarCedula();
+                if (data.exists) {
+                    const ok = await enviarPedido(data.nombre);
+                    if (ok) mostrarAlertaExito();
+                } else {
+                    abrirRegistro();
+                }
+            } catch (e) {
+                Swal.fire('Error', 'Ocurrió un error consultando la cédula.', 'error');
+            }
+        }
+
+        function abrirRegistro() { document.getElementById("registroModal").style.display = "flex"; }
+
+        async function registrarCliente() {
+            const nombre = document.getElementById("regNombre").value.trim();
+            const direccion = document.getElementById("regDireccion").value.trim();
+            const telefono = document.getElementById("regTelefono").value.trim();
+
+            if (!nombre) {
+                Swal.fire('Atención', 'El nombre es obligatorio.', 'warning');
+                return;
+            }
+
+            cerrarRegistro();
+            const ok = await enviarPedido(nombre, direccion, telefono);
+            if (ok) mostrarAlertaExito();
+        }
+
+        window.onload = () => {
+            cargarProductos();
+        }
+    </script>
+</body>
+
+</html>

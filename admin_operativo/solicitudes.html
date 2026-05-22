@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solicitudes - Sildemar</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/styles.css?v=3">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+        .modal-editar-producto {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-editar-content {
+            background: white;
+            border-radius: 20px;
+            width: 900px;
+            max-width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .modal-editar-header {
+            background: linear-gradient(135deg, #3B7BC0 0%, #2F639A 100%);
+            color: white;
+            padding: 20px 25px;
+            border-radius: 20px 20px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-editar-header h3 { margin: 0; font-size: 1.3rem; }
+        .modal-editar-header .codigo-badge { background: rgba(255,255,255,0.2); padding: 6px 15px; border-radius: 30px; font-size: 0.9rem; font-family: monospace; }
+        .close-modal { background: rgba(255,255,255,0.2); border: none; color: white; font-size: 1.2rem; cursor: pointer; width: 35px; height: 35px; border-radius: 50%; transition: all 0.2s; }
+        .close-modal-dark {
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 1.5rem;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0;
+        }
+        .close-modal:hover { background: rgba(255,255,255,0.4); transform: scale(1.1); }
+
+        .modal-editar-body { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; padding: 25px; }
+        .edit-form-section { display: flex; flex-direction: column; gap: 15px; }
+        .edit-form-group { display: flex; flex-direction: column; gap: 5px; }
+        .edit-form-group label { font-size: 12px; font-weight: 600; color: #495057; text-transform: uppercase; letter-spacing: 0.5px; }
+        .edit-form-group label i { margin-right: 5px; color: #3B7BC0; }
+        .edit-form-group input, .edit-form-group select { padding: 8px 12px; border: 1.5px solid #e9ecef; border-radius: 8px; font-size: 13px; transition: all 0.3s ease; }
+        .edit-form-group input:focus, .edit-form-group select:focus { outline: none; border-color: #3B7BC0; box-shadow: 0 0 0 3px rgba(59,123,192,0.1); }
+
+        .image-section { background: #f8f9fa; border-radius: 16px; padding: 20px; text-align: center; display: flex; flex-direction: column; gap: 15px; }
+        .image-section img { width: 100%; max-height: 250px; object-fit: contain; border-radius: 12px; background: white; padding: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .image-section .image-upload label { display: inline-block; background: #3B7BC0; color: white; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 13px; transition: all 0.3s; }
+        .image-section .image-upload label:hover { background: #2F639A; }
+        .image-section .image-upload input { display: none; }
+
+        .modal-editar-footer { padding: 20px 25px; border-top: 1px solid #e9ecef; display: flex; justify-content: flex-end; gap: 15px; }
+        .btn-save { background: #28a745; color: white; border: none; padding: 10px 25px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s; }
+        .btn-save:hover { background: #218838; transform: translateY(-2px); }
+        .btn-cancel-modal { background: #6c757d; color: white; border: none; padding: 10px 25px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s; }
+        .btn-cancel-modal:hover { background: #5a6268; transform: translateY(-2px); }
+
+        .btn-edit-producto { background: #3B7BC0 !important; color: white !important; border: none; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 11px; display: inline-flex; align-items: center; gap: 5px; margin-top: 5px; transition: all 0.2s ease; }
+        .btn-edit-producto:hover { background: #2F639A !important; transform: scale(1.02); }
+
+        @media (max-width: 700px) { .modal-editar-body { grid-template-columns: 1fr; } }
+        .badge.pendiente { background: #ffc107; color: #000; }
+        .badge.aprobada { background: #17a2b8; color: #fff; }
+        .badge.entregada { background: #28a745; color: #fff; }
+        .badge.rechazada { background: #dc3545; color: #fff; }
+
+        .timer-container { font-size: 11px; margin-top: 5px; color: #666; font-weight: bold; display: flex; align-items: center; gap: 4px; }
+        .timer-urgent { color: #dc3545 !important; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        /* Modal Archivar */
+        .modal-archivar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-archivar-content {
+            background: white;
+            border-radius: 15px;
+            width: 500px;
+            max-width: 90%;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        /* Estilos para modal Ver Archivados */
+        .modal-ver-archivados {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-ver-archivados-content {
+            background: white;
+            border-radius: 15px;
+            width: 950px;
+            max-width: 95%;
+            max-height: 90vh;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .modal-ver-archivados-body {
+            overflow-y: auto;
+            margin-top: 15px;
+            flex-grow: 1;
+        }
+
+        /* Tabla compacta y elegante para el archivo */
+        .tabla-archivo-estilizada {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 5px;
+        }
+        .tabla-archivo-estilizada thead th {
+            background: none;
+            color: #7f8c8d;
+            font-size: 11px;
+            text-transform: uppercase;
+            padding: 10px;
+            border: none;
+        }
+        .tabla-archivo-estilizada tbody tr {
+            background: #fdfdfd;
+            transition: all 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .tabla-archivo-estilizada tbody tr:hover {
+            background: #f1f7fd;
+            transform: scale(1.002);
+        }
+        .tabla-archivo-estilizada td {
+            padding: 10px;
+            font-size: 13px;
+            border-top: 1px solid #eee;
+            border-bottom: 1px solid #eee;
+        }
+        .tabla-archivo-estilizada td:first-child { border-left: 1px solid #eee; border-radius: 8px 0 0 8px; }
+        .tabla-archivo-estilizada td:last-child { border-right: 1px solid #eee; border-radius: 0 8px 8px 0; }
+
+        .archivar-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            padding: 20px;
+        }
+        .archivar-full { grid-column: span 3; }
+
+        .modal-sub-header {
+            padding: 15px 20px 0 20px;
+            font-size: 13px;
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="sidebar" id="sidebar">
+        <h2>SILDEMAR</h2>
+        <a href="dashboard.html"><i class="fas fa-home"></i> Inicio</a>
+        <a href="inventario.html"><i class="fas fa-boxes"></i> Inventario</a>
+        <a href="solicitudes.html"><i class="fas fa-shopping-cart"></i> Solicitudes</a>
+        <a href="historial_clientes.html"><i class="fas fa-users"></i> Historial Clientes</a>
+        <a href="reportes.html"><i class="fas fa-file-pdf"></i> Reportes</a>
+        <a href="perfil.html"><i class="fas fa-user-edit"></i> Mi Perfil</a>
+        <a href="../index.html" class="btn-logout" id="logout-btn"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
+    </div>
+
+    <div class="main-content">
+        <header>
+            <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
+            <h1>Gestión de Solicitudes</h1>
+        </header>
+
+        <div class="content-box">
+            <h3><i class="fas fa-search"></i> Filtros de Búsqueda</h3>
+            <div class="filter-controls">
+                <input type="text" id="busqueda" placeholder="Buscar por Cliente o ID..." onkeyup="filtrar()">
+                <select id="filtro-estado" onchange="filtrar()">
+                    <option value="todos">Todos los estados</option>
+                    <option value="Pendiente">Pendientes</option>
+                    <option value="Aprobada">Aprobada</option>
+                    <option value="Rechazada">Rechazada</option>
+                    <option value="Entregada">Entregada</option>
+                </select>
+                <button class="btn-export" style="background: #28a745; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer;" onclick="exportarExcel()">
+                    <i class="fas fa-file-excel"></i> Exportar
+                </button>
+                <button class="btn-export" style="background: #6c757d; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer;" onclick="abrirModalArchivar()">
+                    <i class="fas fa-broom"></i> Limpiar Historial
+                </button>
+                <button class="btn-export"
+                    style="background: #17a2b8; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; margin-left: 10px;"
+                    onclick="abrirModalVerArchivados()">
+                    <i class="fas fa-archive"></i> Ver Archivados
+                </button>
+                <button class="btn-export" style="background: #e74c3c; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer;" onclick="exportarPDF()">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </button>
+            </div>
+        </div>
+
+        <div class="content-box">
+            <h3><i class="fas fa-list"></i> Listado de Pedidos</h3>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Cliente</th>
+                            <th>Fecha</th>
+                            <th>Vendedor</th>
+                            <th>Origen</th>
+                            <th>Estado</th>
+                            <th>Total</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-solicitudes">
+                        <tr><td colspan="8" style="text-align:center;">Cargando solicitudes...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL EDITAR PRODUCTO -->
+    <div id="modalEditarProducto" class="modal-editar-producto">
+        <div class="modal-editar-content">
+            <div class="modal-editar-header">
+                <h3><i class="fas fa-edit"></i> Editar Producto</h3>
+                <div class="codigo-badge" id="edit-codigo-display">Código: ---</div>
+                <button class="close-modal" onclick="cerrarModalEditarProducto()">&times;</button>
+            </div>
+            <div class="modal-editar-body">
+                <div class="edit-form-section">
+                    <div class="edit-form-group">
+                        <label><i class="fas fa-tag"></i> Nombre del Producto</label>
+                        <input type="text" id="edit-nombre" placeholder="Nombre del producto">
+                    </div>
+                    <div class="edit-form-group">
+                        <label><i class="fas fa-industry"></i> Marca Repuesto</label>
+                        <input type="text" id="edit-marca_repuesto" placeholder="Marca del repuesto">
+                    </div>
+                    <div class="edit-form-group">
+                        <label><i class="fas fa-car"></i> Marca Vehículo</label>
+                        <input type="text" id="edit-marca_carro" placeholder="Marca del vehículo">
+                    </div>
+                    <div class="edit-form-group">
+                        <label><i class="fas fa-chart-line"></i> Categoría</label>
+                        <select id="edit-categoria">
+                            <option value="General">General</option>
+                            <option value="Motor">Motor</option>
+                            <option value="Frenos">Frenos</option>
+                            <option value="Suspensión">Suspensión</option>
+                            <option value="Eléctrico">Eléctrico</option>
+                            <option value="Filtros">Filtros</option>
+                            <option value="Transmisión">Transmisión</option>
+                        </select>
+                    </div>
+                    <div class="edit-form-group" id="div-transmision-edit" style="display:none;">
+                        <label><i class="fas fa-cogs"></i> Tipo de Transmisión</label>
+                        <select id="edit-transmision">
+                            <option value="No aplica">No aplica</option>
+                            <option value="Automática">Automática</option>
+                            <option value="Sincrónica">Sincrónica</option>
+                        </select>
+                    </div>
+                    <div class="edit-form-group">
+                        <label><i class="fas fa-dollar-sign"></i> Precio de Compra ($)</label>
+                        <input type="number" id="edit-compra" step="0.01" placeholder="Precio de compra">
+                    </div>
+                    <div class="edit-form-group">
+                        <label><i class="fas fa-dollar-sign"></i> Precio de Venta ($)</label>
+                        <input type="number" id="edit-precio" step="0.01" placeholder="Precio de venta">
+                    </div>
+                </div>
+                <div class="image-section">
+                    <img id="edit-imagen-preview" src="../ima/default.jpg" alt="Imagen del producto">
+                    <div class="image-upload">
+                        <label for="edit-imagen-input">
+                            <i class="fas fa-upload"></i> Seleccionar nueva imagen
+                        </label>
+                        <input type="file" id="edit-imagen-input" accept="image/*">
+                    </div>
+                    <p style="font-size: 11px; color: #7f8c8d;">* Selecciona una nueva imagen para cambiarla</p>
+                </div>
+            </div>
+            <div class="modal-editar-footer">
+                <button class="btn-save" onclick="guardarEdicionProducto()"><i class="fas fa-save"></i> Guardar Cambios</button>
+                <button class="btn-cancel-modal" onclick="cerrarModalEditarProducto()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL ARCHIVAR -->
+    <div id="modalArchivar" class="modal-archivar">
+        <div class="modal-archivar-content">
+            <div class="modal-editar-header" style="border-radius: 0;">
+                <h3><i class="fas fa-broom"></i> Limpiar Historial</h3>
+                <button class="close-modal" onclick="cerrarModalArchivar()">&times;</button>
+            </div>
+            <div class="modal-sub-header">
+                Las solicitudes que coincidan con los filtros dejarán de mostrarse en la tabla, pero se conservarán en la base de datos para reportes.
+            </div>
+            <div class="archivar-grid" style="grid-template-columns: 1fr 1fr;">
+                <div class="edit-form-group">
+                    <label>ID Desde</label>
+                    <input type="number" id="arch-id-desde" placeholder="0001">
+                </div>
+                <div class="edit-form-group">
+                    <label>ID Hasta</label>
+                    <input type="number" id="arch-id-hasta" placeholder="9999">
+                </div>
+                <div class="edit-form-group">
+                    <label>Fecha Desde</label>
+                    <input type="date" id="arch-fecha-desde">
+                </div>
+                <div class="edit-form-group">
+                    <label>Fecha Hasta</label>
+                    <input type="date" id="arch-fecha-hasta">
+                </div>
+                <div class="edit-form-group archivar-full">
+                    <label>Estado de Solicitud</label>
+                    <select id="arch-estado">
+                        <option value="">Cualquiera (Todos)</option>
+                        <option value="Pendiente">Pendientes (Expirables)</option>
+                        <option value="Aprobada">Aceptadas (Aprobadas)</option>
+                        <option value="Rechazada">Rechazadas</option>
+                        <option value="Entregada">Entregadas</option>
+                    </select>
+                </div>
+                <div class="edit-form-group archivar-full" style="grid-column: span 2;">
+                    <label>Cliente (Nombre o Cédula)</label>
+                    <input type="text" id="arch-cliente" placeholder="Ej: Juan Perez o 12345678">
+                </div>
+                <div class="edit-form-group archivar-full" style="grid-column: span 2;">
+                    <label>Vendedor (Código/Cédula)</label>
+                    <input type="text" id="arch-vendedor" placeholder="Código del empleado">
+                </div>
+            </div>
+            <div class="modal-editar-footer" style="padding: 15px 20px; background: #f8f9fa;">
+                <button class="btn-save" style="background:#e67e22; padding: 6px 15px; font-size: 15px;" onclick="ejecutarArchivado()">
+                    <i class="fas fa-archive"></i> Archivar Solicitudes
+                </button>
+                <button class="btn-cancel-modal" onclick="cerrarModalArchivar()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL VER ARCHIVADOS CON OPCIÓN DE RESTAURAR -->
+    <div id="modalVerArchivados" class="modal-ver-archivados">
+        <div class="modal-ver-archivados-content">
+            <div class="modal-editar-header" style="border-radius: 0;">
+                <h3><i class="fas fa-archive"></i> Solicitudes Archivadas</h3>
+                <button class="close-modal" onclick="cerrarModalVerArchivados()">&times;</button>
+            </div>
+            
+            <!-- Filtros de restauración/búsqueda dentro del archivo -->
+            <div class="archivar-grid" style="background: #f8f9fa; border-bottom: 1px solid #eee;">
+                <div class="edit-form-group">
+                    <label>ID Desde</label>
+                    <input type="number" id="varch-id-desde" placeholder="0001">
+                </div>
+                <div class="edit-form-group">
+                    <label>ID Hasta</label>
+                    <input type="number" id="varch-id-hasta" placeholder="9999">
+                </div>
+                <div class="edit-form-group">
+                    <label>Fecha Desde</label>
+                    <input type="date" id="varch-fecha-desde">
+                </div>
+                <div class="edit-form-group">
+                    <label>Fecha Hasta</label>
+                    <input type="date" id="varch-fecha-hasta">
+                </div>
+                <div class="edit-form-group">
+                    <label>Estado</label>
+                    <select id="varch-estado">
+                        <option value="">Cualquiera</option>
+                        <option value="Pendiente">Pendientes</option>
+                        <option value="Aprobada">Aceptadas</option>
+                        <option value="Rechazada">Rechazadas</option>
+                        <option value="Entregada">Entregadas</option>
+                    </select>
+                </div>
+                <div class="edit-form-group">
+                    <label>Cliente (Nombre/Cédula)</label>
+                    <input type="text" id="varch-cliente" placeholder="Nombre del cliente">
+                </div>
+                <div class="edit-form-group">
+                    <label>Vendedor (Nombre/Cédula)</label>
+                    <input type="text" id="varch-vendedor" placeholder="Nombre del vendedor">
+                </div>
+                <div class="edit-form-group archivar-full" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 5px;">
+                    <button class="btn-save" style="background: #17a2b8; padding: 5px 12px; font-size: 11px;" onclick="cargarArchivadas()">
+                        <i class="fas fa-search"></i> Buscar
+                    </button>
+                    <button class="btn-save" style="background: #e67e22; padding: 5px 12px; font-size: 11px;" onclick="ejecutarRestauracionMasiva()">
+                        <i class="fas fa-undo"></i> Restaurar Masivamente
+                    </button>
+                </div>
+            </div>
+
+            <div class="modal-ver-archivados-body" style="padding: 0 20px;">
+                <table class="tabla-archivo-estilizada">
+                    <thead>
+                        <tr><th>ID</th><th>Cliente</th><th>Fecha</th><th>Vendedor</th><th>Total</th><th>Acciones</th></tr>
+                    </thead>
+                    <tbody id="tabla-archivadas">
+                        <tr><td colspan="6" style="text-align:center;">Cargando archivo...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-editar-footer" style="padding: 15px 20px; background: #f8f9fa; border-top: 1px solid #eee;">
+                <button class="btn-cancel-modal" style="padding: 6px 15px; font-size: 12px;" onclick="cerrarModalVerArchivados()">Cerrar Ventana</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let solicitudesGlobal = [];
+        let tasaDolarGlobal = 1;
+        let productoEditando = null;
+
+        function toggleSidebar() { document.getElementById("sidebar").classList.toggle("active"); }
+
+        document.addEventListener('DOMContentLoaded', () => { applySecurity(); cargarSolicitudes(); });
+
+        function applySecurity() {
+            const user = JSON.parse(localStorage.getItem('usuario_actual'));
+            if (!user || user.rol !== 'Gerente Operacional') {
+                alert("Acceso denegado.");
+                window.location.href = "../index.html";
+            }
+        }
+
+        async function cargarProductosGlobal() {
+            try {
+                const timestamp = Date.now();
+                const res = await fetch('../backend/inventario.php?action=list&t=' + timestamp);
+                const data = await res.json();
+                if (!data.error) window.productosGlobal = data;
+            } catch (e) { console.error("Error cargando productos:", e); }
+        }
+
+        async function cargarSolicitudes() {
+            await cargarProductosGlobal();
+            try {
+                const rateRes = await fetch('../backend/get_reportes.php?action=get_rate&t=' + Date.now());
+                const rateData = await rateRes.json();
+                tasaDolarGlobal = parseFloat(rateData.tasa_dolar) || 1;
+
+                const response = await fetch('../backend/solicitudes.php?action=list&t=' + Date.now());
+                const result = await response.json();
+                const tbody = document.getElementById('tabla-solicitudes');
+                tbody.innerHTML = "";
+
+                if (result.success && result.data.length > 0) {
+                    solicitudesGlobal = result.data;
+                    result.data.forEach(s => {
+                        let claseEstado = s.estado.toLowerCase();
+                        const totalUSD = parseFloat(s.total) || 0;
+                        const totalBs = (totalUSD * tasaDolarGlobal).toFixed(2);
+                        const vendedorDisplay = s.vendedor_nombre ? s.vendedor_nombre : "Autogestión";
+                        const codDisplay = s.vendedor_cedula ? `Cod: ${s.vendedor_cedula}` : "Portal Web";
+                        const origenDisplay = s.vendedor_nombre ? "Venta Directa" : "Catálogo (Cliente)";
+                        const badgeColor = s.vendedor_nombre ? "#3B7BC0" : "#28a745";
+
+                        tbody.innerHTML += `
+                            <tr data-cliente="${(s.cliente || '').toLowerCase()}" data-estado="${s.estado}" data-fecha="${s.fecha}" data-id="${s.id_solicitud}">
+                                <td>#${s.id_solicitud.toString().padStart(4, '0')}</td>
+                                <td>${s.cliente || 'N/A'}</td>
+                                <td>${(s.fecha || '').split(' ')[0]}<br><small>${(s.fecha || '').split(' ')[1] || ''}</small></td>
+                                <td>${vendedorDisplay}<br><small>${codDisplay}</small></td>
+                                <td><span class="badge" style="background:${badgeColor}">${origenDisplay}</span></td>
+                                <td><span class="badge ${claseEstado}">${s.estado}</span>${s.estado === 'Pendiente' ? `<div class="timer-container" id="timer-${s.id_solicitud}">--:--:--</div>` : ''}</td>
+                                <td>Bs ${totalBs}<br><small>($${totalUSD.toFixed(2)})</small></td>
+                                <td>
+                                    <button class="btn-action" style="color:#17a2b8; font-size:16px;" onclick="verDetalle(${s.id_solicitud})"><i class="fas fa-eye"></i></button>
+                                    ${s.estado === 'Pendiente' ? `<button class="btn-action" style="background:#28a745; color:white; border:none; padding:5px 10px; border-radius:4px;" onclick="actualizarEstado(${s.id_solicitud}, 'Aprobada')">Aprobar</button>
+                                    <button class="btn-action" style="background:#dc3545; color:white; border:none; padding:5px 10px; border-radius:4px;" onclick="actualizarEstado(${s.id_solicitud}, 'Rechazada')">Rechazar</button>` : ''}
+                                    ${s.estado === 'Aprobada' ? `<button class="btn-action" style="background:#3B7BC0; color:white; border:none; padding:5px 10px; border-radius:4px;" onclick="actualizarEstado(${s.id_solicitud}, 'Entregada')">Entregar</button>` : ''}
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    iniciarContadores();
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="8">No hay solicitudes registradas</td></tr>';
+                }
+            } catch (error) {
+                console.error(error);
+                document.getElementById('tabla-solicitudes').innerHTML = '<tr><td colspan="8" style="color:red;">Error al cargar solicitudes</td></tr>';
+            }
+        }
+
+        async function verDetalle(id) {
+            const s = solicitudesGlobal.find(item => item.id_solicitud == id);
+            if (!s) return;
+            try {
+                const res = await fetch(`../backend/solicitudes.php?action=details&id=${id}&t=${Date.now()}`);
+                const data = await res.json();
+                if (data.success && data.data.length > 0) {
+                    let htmlProductos = `<ul style="text-align:left; list-style:none;">`;
+                    data.data.forEach(item => {
+                        const pUnitUSD = parseFloat(item.precio_unitario) || 0;
+                        const pSubUSD = parseFloat(item.subtotal) || 0;
+                        const pUnitBs = (pUnitUSD * tasaDolarGlobal).toFixed(2);
+                        const pSubBs = (pSubUSD * tasaDolarGlobal).toFixed(2);
+                        htmlProductos += `<li style="margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:10px;">
+                            <strong>${item.nombre_producto}</strong><br>
+                            <span>Bs ${pUnitBs} ($${pUnitUSD.toFixed(2)}) x ${item.cantidad} = <strong>Bs ${pSubBs} ($${pSubUSD.toFixed(2)})</strong></span>
+                            <br><button class="btn-edit-producto" onclick="editarProductoDesdeDetalle(${item.id_producto})"><i class="fas fa-edit"></i> Editar Producto</button>
+                        </li>`;
+                    });
+                    htmlProductos += `</ul>`;
+                    const totalUSD = parseFloat(s.total) || 0;
+                    const totalBs = (totalUSD * tasaDolarGlobal).toFixed(2);
+                    Swal.fire({
+                        title: `Detalle del Pedido #${id.toString().padStart(4, '0')}`,
+                        html: `<div><p><strong>Cliente:</strong> ${s.cliente}</p><p><strong>Fecha:</strong> ${s.fecha}</p><p><strong>Productos:</strong></p>${htmlProductos}<h3>Total: Bs ${totalBs} ($${totalUSD.toFixed(2)})</h3></div>`,
+                        icon: 'info', width: 550, confirmButtonText: 'Cerrar', confirmButtonColor: '#3B7BC0'
+                    });
+                } else { Swal.fire('Error', 'No se pudieron cargar los detalles', 'error'); }
+            } catch(e) { Swal.fire('Error', 'Problema al conectar con el servidor', 'error'); }
+        }
+
+        function editarProductoDesdeDetalle(idProducto) {
+            if (!window.productosGlobal) { Swal.fire('Error', 'No se pudo cargar la información del producto', 'error'); return; }
+            const producto = window.productosGlobal.find(p => p.id_producto == idProducto);
+            if (!producto) { Swal.fire('Error', 'Producto no encontrado', 'error'); return; }
+            abrirModalEditarProducto(producto);
+        }
+
+        function abrirModalEditarProducto(producto) {
+            productoEditando = producto;
+            document.getElementById('edit-codigo-display').innerHTML = `Código: ${producto.codigo || 'N/A'}`;
+            document.getElementById('edit-nombre').value = producto.nombre_producto || '';
+            document.getElementById('edit-marca_repuesto').value = producto.marca_repuesto || '';
+            document.getElementById('edit-marca_carro').value = producto.marca_carro || '';
+            document.getElementById('edit-categoria').value = producto.categoria || 'General';
+            document.getElementById('edit-compra').value = producto.compra || 0;
+            document.getElementById('edit-precio').value = producto.precio || 0;
+            const transmisionSelect = document.getElementById('edit-transmision');
+            transmisionSelect.value = producto.transmision || 'No aplica';
+            const divTransmision = document.getElementById('div-transmision-edit');
+            divTransmision.style.display = producto.categoria === 'Transmisión' ? 'block' : 'none';
+            const imagenPreview = document.getElementById('edit-imagen-preview');
+            let rutaImagen = '../ima/default.jpg';
+            if (producto.imagen && producto.imagen !== 'default.jpg' && producto.imagen !== 'null' && producto.imagen !== '') {
+                let img = producto.imagen;
+                if (!img.startsWith('../') && !img.startsWith('ima/')) img = '../' + img;
+                rutaImagen = img;
+            }
+            imagenPreview.src = rutaImagen;
+            imagenPreview.onerror = function() { this.src = '../ima/default.jpg'; };
+            document.getElementById('modalEditarProducto').style.display = 'flex';
+        }
+
+        function cerrarModalEditarProducto() {
+            document.getElementById('modalEditarProducto').style.display = 'none';
+            productoEditando = null;
+            document.getElementById('edit-imagen-input').value = '';
+        }
+
+        async function guardarEdicionProducto() {
+            if (!productoEditando) return;
+            const formData = new FormData();
+            formData.append('id_producto', productoEditando.id_producto);
+            formData.append('nombre', document.getElementById('edit-nombre').value);
+            formData.append('marca_repuesto', document.getElementById('edit-marca_repuesto').value);
+            formData.append('marca_carro', document.getElementById('edit-marca_carro').value);
+            formData.append('categoria', document.getElementById('edit-categoria').value);
+            formData.append('transmision', document.getElementById('edit-transmision').value);
+            formData.append('compra', document.getElementById('edit-compra').value);
+            formData.append('precio', document.getElementById('edit-precio').value);
+            const imagenInput = document.getElementById('edit-imagen-input');
+            if (imagenInput.files.length > 0) formData.append('imagen', imagenInput.files[0]);
+            Swal.fire({ title: 'Guardando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            try {
+                const response = await fetch('../backend/inventario.php?action=update&t=' + Date.now(), { method: 'POST', body: formData });
+                const data = await response.json();
+                if (data.success) {
+                    Swal.fire('¡Éxito!', 'Producto actualizado', 'success');
+                    cerrarModalEditarProducto();
+                    await cargarProductosGlobal();
+                    location.reload();
+                } else { Swal.fire('Error', data.message || 'Error al actualizar', 'error'); }
+            } catch (error) { Swal.fire('Error', 'Problema de conexión', 'error'); }
+        }
+
+        document.getElementById('edit-categoria').addEventListener('change', function() {
+            const div = document.getElementById('div-transmision-edit');
+            div.style.display = this.value === 'Transmisión' ? 'block' : 'none';
+            if (this.value !== 'Transmisión') document.getElementById('edit-transmision').value = 'No aplica';
+        });
+
+        let intervaloContadores = null;
+        function iniciarContadores() {
+            if (intervaloContadores) clearInterval(intervaloContadores);
+            actualizarRelojes();
+            intervaloContadores = setInterval(actualizarRelojes, 1000);
+        }
+
+        function actualizarRelojes() {
+            const ahora = new Date().getTime();
+            document.querySelectorAll('tr[data-estado="Pendiente"]').forEach(fila => {
+                const id = fila.getAttribute('data-id');
+                const fechaStr = fila.getAttribute('data-fecha').replace(/-/g, '/');
+                const fechaSolicitud = new Date(fechaStr).getTime();
+                const limite24 = fechaSolicitud + (24 * 60 * 60 * 1000);
+                const limite48 = fechaSolicitud + (48 * 60 * 60 * 1000);
+                const timerDiv = document.getElementById(`timer-${id}`);
+                if (!timerDiv) return;
+                if (ahora > limite48) { timerDiv.innerHTML = '<span style="color:#dc3545;">EXPIRADA</span>'; return; }
+                if (ahora > limite24) {
+                    const diff = limite48 - ahora;
+                    const h = Math.floor(diff / (3600000)), m = Math.floor((diff % 3600000) / 60000), s = Math.floor((diff % 60000) / 1000);
+                    timerDiv.className = "timer-container timer-urgent";
+                    timerDiv.innerHTML = `<i class="fas fa-history"></i> Gracia: ${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+                    return;
+                }
+                const diff = limite24 - ahora;
+                const h = Math.floor(diff / 3600000), m = Math.floor((diff % 3600000) / 60000), s = Math.floor((diff % 60000) / 1000);
+                timerDiv.className = "timer-container";
+                timerDiv.innerHTML = `<i class="fas fa-clock"></i> ${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+            });
+        }
+
+        async function actualizarEstado(id, nuevoEstado) {
+            const userData = JSON.parse(localStorage.getItem('usuario_actual'));
+            const activo_id = userData ? userData.id_usuario : null;
+            if (nuevoEstado === 'Rechazada') {
+                const { value: motivo } = await Swal.fire({
+                    title: 'Rechazar Solicitud', input: 'textarea', inputLabel: 'Motivo del rechazo', inputPlaceholder: 'Escribe el motivo...',
+                    showCancelButton: true, confirmButtonText: 'Rechazar', inputValidator: (value) => !value && 'Debes indicar un motivo'
+                });
+                if (!motivo) return;
+                const res = await fetch(`../backend/solicitudes.php?action=update_status&id=${id}&estado=${nuevoEstado}&activo_id=${activo_id}&t=${Date.now()}`);
+                const data = await res.json();
+                if (data.success) {
+                    Swal.fire('¡Rechazada!', 'Solicitud rechazada correctamente', 'success');
+                    cargarSolicitudes();
+                } else { Swal.fire('Error', data.message, 'error'); }
+                return;
+            }
+            Swal.fire({ title: '¿Estás seguro?', text: `¿Cambiar estado a ${nuevoEstado}?`, icon: 'question', showCancelButton: true, confirmButtonText: 'Sí', cancelButtonText: 'Cancelar' })
+                .then(async (result) => {
+                    if (result.isConfirmed) {
+                        const res = await fetch(`../backend/solicitudes.php?action=update_status&id=${id}&estado=${nuevoEstado}&activo_id=${activo_id}&t=${Date.now()}`);
+                        const data = await res.json();
+                        if (data.success) {
+                            Swal.fire('¡Actualizado!', `Estado cambiado a ${nuevoEstado}`, 'success');
+                            cargarSolicitudes();
+                        } else { Swal.fire('Error', data.message, 'error'); }
+                    }
+                });
+        }
+
+        function abrirModalArchivar() { document.getElementById('modalArchivar').style.display = 'flex'; }
+        function cerrarModalArchivar() { document.getElementById('modalArchivar').style.display = 'none'; }
+
+        async function ejecutarArchivado() {
+            const userData = JSON.parse(localStorage.getItem('usuario_actual'));
+            const payload = {
+                id_desde: document.getElementById('arch-id-desde').value,
+                id_hasta: document.getElementById('arch-id-hasta').value,
+                fecha_desde: document.getElementById('arch-fecha-desde').value,
+                fecha_hasta: document.getElementById('arch-fecha-hasta').value,
+                cliente: document.getElementById('arch-cliente').value,
+                vendedor: document.getElementById('arch-vendedor').value,
+                estado: document.getElementById('arch-estado').value,
+                activo_id: userData ? userData.id_usuario : null
+            };
+            if (!payload.id_desde && !payload.id_hasta && !payload.fecha_desde && !payload.fecha_hasta && !payload.cliente && !payload.vendedor && !payload.estado) {
+                Swal.fire("Atención", "Debes completar al menos un filtro", "warning");
+                return;
+            }
+            const confirm = await Swal.fire({ title: '¿Archivar?', text: 'Estas solicitudes se ocultarán', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e67e22', confirmButtonText: 'Archivar' });
+            if (confirm.isConfirmed) {
+                const res = await fetch('../backend/solicitudes.php?action=archive', { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json' } });
+                const data = await res.json();
+                if (data.success) {
+                    Swal.fire("¡Completado!", `${data.count} solicitudes archivadas`, "success");
+                    cerrarModalArchivar();
+                    cargarSolicitudes();
+                } else { Swal.fire("Error", data.message, "error"); }
+            }
+        }
+
+        function abrirModalVerArchivados() {
+            document.getElementById('modalVerArchivados').style.display = 'flex';
+            cargarArchivadas();
+        }
+
+        function cerrarModalVerArchivados() {
+            document.getElementById('modalVerArchivados').style.display = 'none';
+        }
+
+        async function cargarArchivadas() {
+            try {
+                const response = await fetch('../backend/solicitudes.php?action=list_archived&t=' + Date.now());
+                const result = await response.json();
+                const tbody = document.getElementById('tabla-archivadas');
+                tbody.innerHTML = "";
+
+                if (result.success && result.data.length > 0) {
+                    const idD = document.getElementById('varch-id-desde').value;
+                    const idH = document.getElementById('varch-id-hasta').value;
+                    const txtCli = document.getElementById('varch-cliente').value.toLowerCase();
+                    const txtVend = document.getElementById('varch-vendedor').value.toLowerCase();
+                    const est = document.getElementById('varch-estado').value;
+
+                    const filtradas = result.data.filter(s => {
+                        if (idD && s.id_solicitud < idD) return false;
+                        if (idH && s.id_solicitud > idH) return false;
+                        if (est && s.estado !== est) return false;
+                        if (txtCli && !s.cliente.toLowerCase().includes(txtCli)) return false;
+                        if (txtVend && !s.vendedor_nombre?.toLowerCase().includes(txtVend)) return false;
+                        return true;
+                    });
+
+                    if (filtradas.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No hay coincidencias en el archivo</td></tr>';
+                        return;
+                    }
+
+                    filtradas.forEach(s => {
+                        const totalUSD = parseFloat(s.total) || 0;
+                        const totalBs = (totalUSD * tasaDolarGlobal).toFixed(2);
+                        const vendedorDisplay = s.vendedor_nombre ? s.vendedor_nombre : "Autogestión";
+
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>#${s.id_solicitud.toString().padStart(4, '0')}</td>
+                                <td>${s.cliente || 'N/A'}</td>
+                                <td>${(s.fecha || '').split(' ')[0]}</td>
+                                <td>${vendedorDisplay}</td>
+                                <td>Bs ${totalBs} ($${totalUSD.toFixed(2)})</td>
+                                <td>
+                                    <button class="btn-action" style="color:#e67e22;" onclick="restaurarSolicitud(${s.id_solicitud})" title="Desarchivar">
+                                        <i class="fas fa-undo"></i> Restaurar
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No hay solicitudes en el archivo</td></tr>';
+                }
+            } catch (error) {
+                console.error(error);
+                document.getElementById('tabla-archivadas').innerHTML = '<tr><td colspan="6" style="text-align:center; color:red;">Error al cargar archivo</td></tr>';
+            }
+        }
+
+        async function ejecutarRestauracionMasiva() {
+            const userData = JSON.parse(localStorage.getItem('usuario_actual'));
+            const payload = {
+                id_desde: document.getElementById('varch-id-desde').value,
+                id_hasta: document.getElementById('varch-id-hasta').value,
+                fecha_desde: document.getElementById('varch-fecha-desde').value,
+                fecha_hasta: document.getElementById('varch-fecha-hasta').value,
+                cliente: document.getElementById('varch-cliente').value,
+                vendedor: document.getElementById('varch-vendedor').value,
+                estado: document.getElementById('varch-estado').value,
+                activo_id: userData ? userData.id_usuario : null
+            };
+            
+            const confirm = await Swal.fire({ title: '¿Restaurar estas solicitudes?', text: 'Las solicitudes que coincidan con los filtros seleccionados volverán al historial principal.', icon: 'question', showCancelButton: true, confirmButtonColor: '#e67e22', confirmButtonText: 'Sí, restaurar' });
+            if (confirm.isConfirmed) {
+                const res = await fetch('../backend/solicitudes.php?action=restore', { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json' } });
+                const data = await res.json();
+                if (data.success) {
+                    Swal.fire("¡Restauradas!", `${data.count} solicitudes han sido devueltas al historial.`, "success");
+                    cargarArchivadas();
+                    cargarSolicitudes();
+                } else { Swal.fire("Error", data.message, "error"); }
+            }
+        }
+
+        async function restaurarSolicitud(id) {
+            const userData = JSON.parse(localStorage.getItem('usuario_actual'));
+            const activo_id = userData ? userData.id_usuario : null;
+            const res = await fetch('../backend/solicitudes.php?action=restore', { method: 'POST', body: JSON.stringify({ id_solicitud: id, activo_id: activo_id }), headers: { 'Content-Type': 'application/json' } });
+            const data = await res.json();
+            if (data.success) {
+                cargarArchivadas();
+                cargarSolicitudes();
+            }
+        }
+
+        function filtrar() {
+            const texto = document.getElementById('busqueda').value.toLowerCase();
+            const estado = document.getElementById('filtro-estado').value;
+            document.querySelectorAll('#tabla-solicitudes tr').forEach(f => {
+                if (f.cells && f.cells.length > 0) {
+                    const idCliente = f.cells[0]?.innerText.toLowerCase() || '';
+                    const nombreCliente = f.cells[1]?.innerText.toLowerCase() || '';
+                    const estadoFila = f.getAttribute('data-estado');
+                    f.style.display = (idCliente.includes(texto) || nombreCliente.includes(texto)) && (estado === 'todos' || estado === estadoFila) ? '' : 'none';
+                }
+            });
+        }
+
+        function exportarExcel() {
+            try {
+                const fecha = new Date().toLocaleDateString();
+                const datos = [['ID', 'Cliente', 'Fecha', 'Vendedor', 'Origen', 'Estado', 'Total USD', 'Total Bs']];
+                document.querySelectorAll('#tabla-solicitudes tr').forEach(fila => {
+                    if (fila.style.display !== "none" && fila.cells && fila.cells.length > 0) {
+                        datos.push([
+                            fila.cells[0]?.innerText || '', fila.cells[1]?.innerText || '', fila.cells[2]?.innerText.split('<br>')[0] || '',
+                            fila.cells[3]?.innerText.split('<br>')[0] || '', fila.cells[4]?.innerText.replace(/<[^>]*>/g, '') || '',
+                            fila.cells[5]?.innerText.split('<div')[0] || '', fila.cells[6]?.innerText.split('Bs')[1]?.split('(')[0]?.trim() || '',
+                            fila.cells[6]?.innerText.split('Bs')[1]?.split('(')[1]?.replace(')', '').trim() || ''
+                        ]);
+                    }
+                });
+                const ws = XLSX.utils.aoa_to_sheet(datos);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Solicitudes");
+                XLSX.writeFile(wb, `Sildemar_Solicitudes_${fecha.replace(/\//g, '-')}.xlsx`);
+                Swal.fire("Exportado", "Datos exportados correctamente", "success");
+            } catch (error) { Swal.fire("Error", "Error al exportar", "error"); }
+        }
+
+        function exportarPDF() {
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                const userData = JSON.parse(localStorage.getItem('usuario_actual'));
+                const userName = userData ? userData.nombre : 'Sistema';
+                const userCode = userData ? (userData.cedula || userData.id_usuario) : 'N/A';
+                const ahora = new Date();
+                const fecha = ahora.toLocaleDateString();
+                const hora = ahora.toLocaleTimeString();
+                const nroControl = "SOL-" + ahora.getTime();
+
+                const drawHeader = () => {
+                    doc.setFontSize(18);
+                    doc.setTextColor(0, 0, 0);
+                    doc.text("Sildemar - Reporte de Solicitudes", 45, 20);
+                    doc.setFontSize(10);
+                    doc.text(`Tasa: ${tasaDolarGlobal.toFixed(2)}`, doc.internal.pageSize.width - 60, 20);
+                };
+
+                const drawFooter = () => {
+                    const pageHeight = doc.internal.pageSize.height;
+                    const pageWidth = doc.internal.pageSize.width;
+                    doc.setFontSize(8);
+                    doc.setTextColor(100);
+                    const xPos = pageWidth - 65;
+                    doc.text(`Generado por: ${userName}`, xPos, pageHeight - 25);
+                    doc.text(`Código: ${userCode}`, xPos, pageHeight - 21);
+                    doc.text(`Nro. Control: ${nroControl}`, xPos, pageHeight - 17);
+                    doc.text(`Fecha: ${fecha}`, xPos, pageHeight - 13);
+                    doc.text(`Hora: ${hora}`, xPos, pageHeight - 9);
+                };
+
+                drawHeader();
+                const filasVisibles = [];
+                document.querySelectorAll('#tabla-solicitudes tr').forEach(fila => {
+                    if (fila.style.display !== "none" && fila.cells && fila.cells.length > 0) {
+                        filasVisibles.push([
+                            fila.cells[0]?.innerText || '', fila.cells[1]?.innerText || '', fila.cells[2]?.innerText.split('<br>')[0] || '',
+                            fila.cells[3]?.innerText.split('<br>')[0] || '', fila.cells[4]?.innerText.replace(/<[^>]*>/g, '') || '',
+                            fila.cells[5]?.innerText.split('<div')[0] || '', fila.cells[6]?.innerText.split('Bs')[1]?.split('(')[0]?.trim() || ''
+                        ]);
+                    }
+                });
+
+                const FILAS_POR_PAGINA = 17;
+                const totalPaginas = Math.ceil(filasVisibles.length / FILAS_POR_PAGINA);
+                for (let i = 0; i < totalPaginas; i++) {
+                    const subconjunto = filasVisibles.slice(i * FILAS_POR_PAGINA, (i + 1) * FILAS_POR_PAGINA);
+                    doc.autoTable({
+                        head: [['ID', 'Cliente', 'Fecha', 'Vendedor', 'Origen', 'Estado', 'Total Bs']],
+                        body: subconjunto,
+                        startY: 40,
+                        theme: 'striped',
+                        headStyles: { fillColor: [59, 123, 192] },
+                        didDrawPage: () => drawFooter()
+                    });
+                    if (i < totalPaginas - 1) { doc.addPage(); drawHeader(); }
+                }
+
+                const totalPages = doc.internal.getNumberOfPages();
+                for (let i = 1; i <= totalPages; i++) {
+                    doc.setPage(i);
+                    doc.setFontSize(8);
+                    doc.setTextColor(100);
+                    doc.text(`(${i}/${totalPages})`, doc.internal.pageSize.width / 2 - 10, doc.internal.pageSize.height - 5);
+                }
+                doc.save(`Sildemar_Solicitudes_${fecha.replace(/\//g, '-')}.pdf`);
+                Swal.fire("Exportado", "PDF generado correctamente", "success");
+            } catch (error) { Swal.fire("Error", "Error al generar PDF", "error"); }
+        }
+
+        document.getElementById('logout-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            localStorage.removeItem('usuario_actual');
+            window.location.href = "../index.html";
+        });
+    </script>
+</body>
+
+</html>

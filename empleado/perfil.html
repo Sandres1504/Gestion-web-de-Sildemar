@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Perfil - Sildemar</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+
+<body>
+
+    <div class="sidebar">
+        <h2>SILDEMAR</h2>
+        <a href="empleado.html"><i class="fas fa-home"></i> Mi Panel</a>
+        <a href="inventario.html"><i class="fas fa-boxes"></i> Ver Inventario</a>
+        <a href="nueva_solicitud.html"><i class="fas fa-plus-circle"></i> Nueva Solicitud</a>
+        <a href="mis_solicitudes.html"><i class="fas fa-shopping-cart"></i> Mis Solicitudes</a>
+        <a href="perfil.html" style="background:#004080;color:white;"><i class="fas fa-user-edit"></i> Mi Perfil</a>
+        <a href="#" id="logout-btn" style="margin-top:40px;background:#c0392b;">
+            <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+        </a>
+    </div>
+
+    <div class="main-content">
+        <header>
+            <h1>Configuración de Mi Perfil</h1>
+            <div>
+                <i class="fas fa-user-circle"></i>
+                <span id="user-info">Cargando...</span>
+            </div>
+        </header>
+
+        <div class="cards" style="justify-content: center;">
+            <div class="card" style="max-width: 600px; flex: inherit; width: 100%;">
+                <h3><i class="fas fa-id-badge"></i> Datos de Acceso y Contacto</h3>
+                
+                <form id="form-perfil" style="display: flex; flex-direction: column; gap: 15px; margin-top: 20px; text-align: left;">
+                    
+                    <div>
+                        <label style="font-size: 14px; font-weight: bold;">Cédula de Identidad</label>
+                        <input type="text" id="p-cedula" readonly style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd; background-color: #f0f0f0; cursor: not-allowed; color:#555;">
+                        <small style="color: #888;">Este campo no puede ser modificado.</small>
+                    </div>
+
+                    <div>
+                        <label style="font-size: 14px; font-weight: bold;">Nombre Completo</label>
+                        <input type="text" id="p-nombre" readonly style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd; background-color: #f0f0f0; cursor: not-allowed; color:#555;">
+                        <small style="color: #888;">Este campo no puede ser modificado.</small>
+                    </div>
+
+                    <div>
+                        <label style="font-size: 14px; font-weight: bold;">Correo Electrónico <span style="color:red; font-size:12px; font-weight:normal;">* Obligatorio</span></label>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="email" id="p-email" placeholder="ejemplo@correo.com" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #ddd;">
+                            <button type="button" onclick="updateProfile('email')" class="btn btn-blue" style="padding: 10px 15px; height: 40px;"><i class="fas fa-save"></i></button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style="font-size: 14px; font-weight: bold;">Teléfono <span style="color:red; font-size:12px; font-weight:normal;">* Obligatorio</span></label>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="text" id="p-telefono" placeholder="Ej: 04141234567" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #ddd;">
+                            <button type="button" onclick="updateProfile('telefono')" class="btn btn-blue" style="padding: 10px 15px; height: 40px;"><i class="fas fa-save"></i></button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style="font-size: 14px; font-weight: bold;">Dirección <span style="color:red; font-size:12px; font-weight:normal;">* Obligatorio</span></label>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="text" id="p-direccion" placeholder="Ej: Av. Principal..." style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #ddd;">
+                            <button type="button" onclick="updateProfile('direccion')" class="btn btn-blue" style="padding: 10px 15px; height: 40px;"><i class="fas fa-save"></i></button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style="font-size: 14px; font-weight: bold;">Nueva Contraseña</label>
+                        <div style="display: flex; gap: 10px;">
+                            <div style="position: relative; flex: 1;">
+                                <input type="password" id="p-clave" placeholder="Ingresa tu nueva contraseña" 
+                                    title="Requisitos: 1 Mayúscula, 1 Minúscula, 1 Número y 1 Carácter especial (excepto ; : { } [ ] ' , .)"
+                                    style="width: 100%; padding: 10px; padding-right: 40px; border-radius: 8px; border: 1px solid #ddd;">
+                                <i class="fas fa-eye" id="togglePassword" style="position: absolute; right: 15px; top: 12px; cursor: pointer; color: #666;"></i>
+                            </div>
+                            <button type="button" onclick="updateProfile('clave')" class="btn btn-blue" style="padding: 10px 15px; height: 40px;"><i class="fas fa-save"></i></button>
+                        </div>
+                        <small style="color: #666; display: block; margin-top: 5px; font-size: 11px;">
+                            Debe incluir: 1 Mayúscula, 1 Minúscula, 1 Número y 1 Carácter especial. <br>
+                            Caracteres no permitidos: ; : { } [ ] ' , .
+                        </small>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let currentUserId = null;
+
+        // Mostrar u ocultar contraseña
+        document.getElementById('togglePassword').addEventListener('click', function () {
+            const claveInput = document.getElementById('p-clave');
+            if (claveInput.type === 'password') {
+                claveInput.type = 'text';
+                this.classList.replace('fa-eye', 'fa-eye-slash');
+            } else {
+                claveInput.type = 'password';
+                this.classList.replace('fa-eye-slash', 'fa-eye');
+            }
+        });
+
+        async function applySecurity() {
+            const userData = JSON.parse(localStorage.getItem('usuario_actual'));
+            const userRole = String(userData?.rol || '').trim().toLowerCase();
+            if (!userData || userRole !== 'empleado') {
+                window.location.href = "../index.html";
+                return;
+            }
+            
+            document.getElementById('user-info').innerText = `${userData.nombre} (Empleado)`; // Corrected display role
+            currentUserId = userData.id_usuario;
+
+            // Verificar si es el primer inicio de sesión
+            if (userData.primer_login === 1) {
+                Swal.fire({
+                    title: '¡Aviso de Seguridad!',
+                    text: 'Es tu primera vez en el sistema. Tu contraseña actual no es segura. Por favor, cámbiala en tu perfil.',
+                    icon: 'warning',
+                    confirmButtonText: 'Ir a Mi Perfil', // Consistent with other pages
+                    confirmButtonColor: '#3B7BC0',
+                    allowOutsideClick: false,
+                }).then((result) => {
+                    if (result.isConfirmed) { // If user confirms, redirect to profile
+                        window.location.href = 'perfil.html';
+                    }
+                });
+                // Actualizamos el objeto local para que no vuelva a salir en esta sesión
+                userData.primer_login = 0;
+                localStorage.setItem('usuario_actual', JSON.stringify(userData));
+            }
+
+            // Cargar los datos actuales
+            try {
+                const res = await fetch(`../backend/perfil.php?action=get&id=${currentUserId}`);
+                const result = await res.json();
+                if(result.success) {
+                    document.getElementById('p-cedula').value = result.data.cedula;
+                    document.getElementById('p-nombre').value = result.data.nombre;
+                    document.getElementById('p-email').value = result.data.correo;
+                    document.getElementById('p-telefono').value = result.data.telefono || '';
+                    document.getElementById('p-direccion').value = result.data.direccion || '';
+                } else {
+                    Swal.fire('Error', result.message || 'No se pudieron cargar los datos del perfil', 'error');
+                }
+            } catch(e) {
+                console.error("Error cargando perfil:", e);
+                Swal.fire('Error', 'Problema al conectar con el servidor para cargar el perfil', 'error');
+            }
+        }
+
+        async function updateProfile(field) {
+            const emailInput = document.getElementById("p-email").value;
+            const telefonoInput = document.getElementById("p-telefono").value;
+            const direccionInput = document.getElementById("p-direccion").value;
+            const claveInput = document.getElementById("p-clave").value;
+
+            if (field === 'email') {
+                const emailRegex = /^[^@\s]+@[^@\s]+\.com$/;
+                if(!emailRegex.test(emailInput.toLowerCase())) {
+                    Swal.fire('Atención', 'Correo inválido', 'warning');
+                    return;
+                }
+            }
+
+            if (field === 'clave' && !claveInput) {
+                Swal.fire('Atención', 'Ingresa una nueva contraseña para actualizarla', 'warning');
+                return;
+            }
+
+            if (claveInput) {
+                const hasUpper = /[A-Z]/.test(claveInput);
+                const hasLower = /[a-z]/.test(claveInput);
+                const hasNumber = /[0-9]/.test(claveInput);
+                const hasSpecial = /[^A-Za-z0-9;:{}\[\]',.]/.test(claveInput);
+                const hasForbidden = /[;:{}\[\]',.]/.test(claveInput);
+
+                if (!hasUpper || !hasLower || !hasNumber || !hasSpecial) {
+                    Swal.fire('Contraseña Insegura', 'La contraseña debe contener al menos una mayúscula, una minúscula, un número y un carácter especial.', 'warning');
+                    return;
+                }
+                if (hasForbidden) {
+                    Swal.fire('Caracteres no permitidos', "La contraseña no puede contener: ; : { } [ ] ' , .", 'warning');
+                    return;
+                }
+            }
+
+            try {
+                const res = await fetch('../backend/perfil.php?action=update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id_usuario: currentUserId, correo: emailInput, clave: claveInput, telefono: telefonoInput, direccion: direccionInput })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    Swal.fire('Perfil Guardado', 'Tus datos se actualizaron correctamente. Inicia sesión de nuevo para aplicar cambios.', 'success').then(() => {
+                        localStorage.removeItem('usuario_actual');
+                        window.location.href = "../index.html";
+                    });
+                } else {
+                    Swal.fire('Error', result.message || 'No se pudieron guardar los cambios', 'error');
+                }
+            } catch(e) { Swal.fire('Error', 'Problema al conectar con el servidor', 'error'); }
+        }
+
+        // Logout
+        document.getElementById('logout-btn').addEventListener('click', function (e) {
+            e.preventDefault();
+            localStorage.removeItem('usuario_actual');
+            window.location.href = "../index.html";
+        });
+
+        window.onload = applySecurity;
+    </script>
+</body>
+</html>

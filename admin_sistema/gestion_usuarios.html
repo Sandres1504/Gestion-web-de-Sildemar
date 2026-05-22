@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sildemar - Gestión de Usuarios</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        .action-btn {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            color: white;
+            margin: 0 2px;
+        }
+
+        .btn-danger {
+            background-color: #dc3545;
+        }
+
+        .btn-success {
+            background-color: #28a745;
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            font-weight: bold;
+        }
+
+        .swal2-input {
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="sidebar" id="sidebar">
+        <h2>SILDEMAR</h2>
+        <a href="dashboard.html"><i class="fas fa-home"></i> Inicio</a>
+        <a href="gestion_usuarios.html"><i class="fas fa-user-plus"></i> Usuarios</a>
+        <a href="auditoria.html"><i class="fas fa-history"></i> Auditoría</a>
+        <a href="perfil.html"><i class="fas fa-user-edit"></i> Mi Perfil</a>
+        <a href="../index.html" class="btn-logout" id="logout-btn"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a>
+    </div>
+
+    <div class="main-content">
+        <div class="header-flex">
+            <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
+            <h1>Gestión de Usuarios</h1>
+        </div>
+
+        <div class="card" style="grid-column: 1 / -1; margin-bottom: 20px;">
+            <h3>Directorio de Usuarios</h3>
+            <p>Administración y registro de cuentas de acceso al sistema.</p>
+        </div>
+
+        <button class="action-btn btn-success" onclick="abrirModalCrear()">
+            <i class="fas fa-plus"></i> Registrar Nuevo Usuario
+        </button>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Correo</th>
+                    <th>Rol en el Sistema</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-usuarios">
+                <tr>
+                    <td colspan="4" style="text-align: center;">Cargando lista de usuarios...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        let currentUser = null;
+
+        async function applySecurity() {
+            currentUser = JSON.parse(localStorage.getItem('usuario_actual'));
+            if (!currentUser) {
+                window.location.href = "../index.html";
+                return;
+            }
+            if (currentUser.rol !== 'Gerente del Sistema') {
+                alert("Acceso denegado. Solo el Gerente del Sistema puede ver esta página.");
+                window.location.href = "../index.html";
+                return;
+            }
+        }
+
+        async function cargarUsuarios() {
+            try {
+                const res = await fetch('../backend/gestion_usuarios.php?action=list');
+                const data = await res.json();
+
+                console.log("Respuesta del backend:", data);
+
+                const tabla = document.getElementById("tabla-usuarios");
+
+                if (data.success) {
+                    if (data.usuarios && data.usuarios.length > 0) {
+                        tabla.innerHTML = data.usuarios.map(u => `
+                            <tr>
+                                <td style="font-weight:bold; color:#3B7BC0;">
+                                    <i class="fas fa-user"></i> ${u.nombre}
+                                </td>
+                                <td>${u.correo}</td>
+                                <td><span class="badge" style="background:#17a2b8;">${u.rol}</span></td>
+                                <td>
+                                    <button class="action-btn btn-danger" onclick="eliminarUsuario(${u.id_usuario})" title="Eliminar Acceso">
+                                        <i class="fas fa-trash"></i> Eliminar
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('');
+                    } else {
+                        tabla.innerHTML = '<tr><td colspan="4" style="text-align: center;">No hay usuarios registrados en la base de datos.</td></tr>';
+                    }
+                } else {
+                    tabla.innerHTML = `<tr><td colspan="4" style="text-align: center; color: red;">Error: ${data.message || 'Error desconocido'}</td></tr>`;
+                }
+            } catch (e) {
+                console.error("Error en cargarUsuarios:", e);
+                document.getElementById("tabla-usuarios").innerHTML = '<tr><td colspan="4" style="text-align: center; color: red;">Error crítico al cargar los datos.</td></tr>';
+            }
+        }
+
+        async function abrirModalCrear() {
+            const { value: formValues } = await Swal.fire({
+                title: '<span style="font-size:24px;font-weight:700;color:#2c3e50;">👤 Registro de Nuevo Usuario</span>',
+                html: `
+            <style>
+                .swal2-popup {
+                    border-radius: 24px !important;
+                    padding: 25px !important;
+                }
+
+                .swal2-html-container {
+                    margin-top: 10px !important;
+                }
+
+                .modal-container {
+                    text-align: left;
+                    font-family: 'Segoe UI', sans-serif;
+                }
+
+                .modal-section {
+                    background: linear-gradient(145deg, #f8fbff, #eef5fc);
+                    border: 1px solid #dbe9f6;
+                    border-radius: 18px;
+                    padding: 18px;
+                    margin-bottom: 18px;
+                    box-shadow: inset 0 2px 8px rgba(255,255,255,0.7);
+                }
+
+                .section-title {
+                    font-size: 13px;
+                    font-weight: 700;
+                    color: #3B7BC0;
+                    margin-bottom: 14px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.8px;
+                }
+
+                .modal-campo {
+                    margin-bottom: 16px;
+                }
+
+                .modal-campo label {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    font-weight: 600;
+                    font-size: 13px;
+                    margin-bottom: 7px;
+                    color: #34495e;
+                }
+
+                .obligatorio {
+                    color: #e74c3c;
+                    font-size: 11px;
+                    font-weight: 500;
+                }
+
+                .opcional {
+                    color: #7f8c8d;
+                    font-size: 11px;
+                    font-weight: 500;
+                }
+
+                .modal-campo input,
+                .modal-campo select {
+                    width: 100%;
+                    padding: 13px 15px;
+                    border: 1.5px solid #d6e4f0;
+                    border-radius: 14px;
+                    font-size: 14px;
+                    background: #ffffff;
+                    transition: all 0.25s ease;
+                    box-sizing: border-box;
+                }
+
+                .modal-campo input:focus,
+                .modal-campo select:focus {
+                    outline: none;
+                    border-color: #3B7BC0;
+                    box-shadow: 0 0 0 4px rgba(59,123,192,0.12);
+                    transform: translateY(-1px);
+                }
+
+                .modal-campo input.error-input,
+                .modal-campo select.error-input {
+                    border-color: #e74c3c;
+                    background: #fff5f5;
+                }
+
+                .cedula-wrapper {
+                    display: flex;
+                    gap: 12px;
+                    align-items: center;
+                }
+
+                .cedula-wrapper select {
+                    width: 95px;
+                    flex-shrink: 0;
+                    font-weight: 600;
+                    background: #f8fbff;
+                }
+
+                .cedula-wrapper input {
+                    flex: 1;
+                }
+
+                .password-wrapper {
+                    position: relative;
+                    display: flex;
+                    align-items: center;
+                }
+
+                .password-wrapper input {
+                    padding-right: 52px;
+                    background: linear-gradient(145deg, #f8f9fa, #eef2f7);
+                    font-family: monospace;
+                    letter-spacing: 1px;
+                    font-weight: 600;
+                }
+
+                .password-wrapper i {
+                    position: absolute;
+                    right: 14px;
+                    cursor: pointer;
+                    color: #7f8c8d;
+                    font-size: 17px;
+                    background: white;
+                    border-radius: 50%;
+                    width: 34px;
+                    height: 34px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+                    transition: all 0.25s ease;
+                }
+
+                .password-wrapper i:hover {
+                    color: #3B7BC0;
+                    transform: scale(1.08);
+                }
+
+                .badge-generado {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    margin-top: 8px;
+                    padding: 6px 12px;
+                    background: linear-gradient(145deg, #e8f5e9, #dff6e4);
+                    color: #2e7d32;
+                    font-size: 11px;
+                    font-weight: 600;
+                    border-radius: 30px;
+                    border: 1px solid #c8e6c9;
+                }
+
+                .info-banner {
+                    background: linear-gradient(135deg, #3B7BC0, #2F639A);
+                    color: white;
+                    padding: 14px 18px;
+                    border-radius: 16px;
+                    font-size: 13px;
+                    margin-bottom: 18px;
+                    box-shadow: 0 8px 18px rgba(59,123,192,0.2);
+                }
+
+                .info-banner strong {
+                    display: block;
+                    font-size: 14px;
+                    margin-bottom: 4px;
+                }
+            </style>
+
+            <div class="modal-container">
+
+                <div class="info-banner">
+                    <strong>Acceso Seguro</strong>
+                    Registra un nuevo usuario con credenciales automáticas (Iniciales + Cédula + Fecha).
+                </div>
+
+                <div class="modal-section">
+                    <div class="section-title">📇 Identificación</div>
+
+                    <div class="modal-campo">
+                        <label>Cédula <span class="obligatorio">* Campo Obligatorio</span></label>
+                        <div class="cedula-wrapper">
+                            <select id="swal-prefijo">
+                                <option value="V">V</option>
+                                <option value="E">E</option>
+                                <option value="P">P</option>
+                            </select>
+                            <input type="text" id="swal-cedula" placeholder="12345678" autocomplete="off">
+                        </div>
+                    </div>
+
+                    <div class="modal-campo">
+                        <label>Rol del Usuario <span class="obligatorio">* Campo Obligatorio</span></label>
+                        <select id="swal-rol" style="width: 100%; padding: 13px 15px; border: 1.5px solid #d6e4f0; border-radius: 14px; font-size: 14px;">
+                            <option value="3">Empleado (Operador)</option>
+                            <option value="2">Gerente Operacional</option>
+                            <option value="1">Gerente del Sistema (Admin)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="modal-section">
+                    <div class="section-title">🧾 Información Personal</div>
+
+                    <div class="modal-campo">
+                        <label>Nombre completo <span class="obligatorio">* Campo Obligatorio</span></label>
+                        <input type="text" id="swal-nombre" placeholder="Nombre y apellido" autocomplete="off">
+                    </div>
+
+                    <div class="modal-campo">
+                        <label>Correo electrónico <span class="obligatorio">* Campo Obligatorio</span></label>
+                        <input type="email" id="swal-email" placeholder="ejemplo@correo.com" autocomplete="off">
+                    </div>
+
+                    <div class="modal-campo">
+                        <label>Número de Teléfono <span class="obligatorio">* Campo Obligatorio</span></label>
+                        <input type="text" id="swal-telefono" placeholder="0412-1234567" autocomplete="off">
+                    </div>
+
+                    <div class="modal-campo">
+                        <label>Dirección <span class="opcional">Opcional</span></label>
+                        <input type="text" id="swal-direccion" placeholder="Ciudad, estado, dirección" autocomplete="off">
+                    </div>
+                </div>
+
+                <div class="modal-section">
+                    <div class="section-title">🔐 Seguridad</div>
+
+                    <div class="modal-campo">
+                        <label>Contraseña automática <span class="obligatorio">*Generada</span></label>
+                        <div class="password-wrapper">
+                            <input type="password" id="swal-clave" placeholder="Se generará automáticamente" readonly autocomplete="off">
+                            <i class="fas fa-eye-slash" id="toggle-password"></i>
+                        </div>
+                        <span class="badge-generado" id="badge-generado">⚡ Generada desde la cédula</span>
+                    </div>
+                </div>
+
+            </div>
+        `,
+                width: '580px',
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonColor: '#3B7BC0',
+                confirmButtonText: '✓ Registrar Usuario',
+                cancelButtonText: '✕ Cancelar',
+                cancelButtonColor: '#95a5a6',
+
+                didOpen: () => {
+                    const inputCedula = document.getElementById('swal-cedula');
+                    const selectPrefijo = document.getElementById('swal-prefijo');
+                    const inputClave = document.getElementById('swal-clave');
+                    const badgeGenerado = document.getElementById('badge-generado');
+                    const togglePassword = document.getElementById('toggle-password');
+
+                    function generarContrasena() {
+                        const cedulaNum = inputCedula.value.trim();
+                        const nombreCompleto = document.getElementById('swal-nombre').value.trim();
+                        
+                        // Obtenemos iniciales (Primera del nombre en Mayúscula, primera del apellido en Minúscula)
+                        const partes = nombreCompleto.split(' ');
+                        const letra1 = partes[0] ? partes[0].charAt(0).toUpperCase() : '';
+                        const letra2 = partes[1] ? partes[1].charAt(0).toLowerCase() : '';
+                        
+                        // Obtenemos últimos 3 de la cédula
+                        const ultimos3 = (cedulaNum.length >= 3) ? cedulaNum.slice(-3) : '';
+                        
+                        // Obtenemos fecha actual (DD/MM)
+                        const hoy = new Date();
+                        const dia = String(hoy.getDate()).padStart(2, '0');
+                        const mes = String(hoy.getMonth() + 1).padStart(2, '0');
+                        const fechaStr = `${dia}/${mes}`;
+
+                        if (cedulaNum && /^\d{7,8}$/.test(cedulaNum) && nombreCompleto.length >= 3) {
+                            const claveGenerada = letra1 + letra2 + ultimos3 + fechaStr;
+                            inputClave.value = claveGenerada;
+                            badgeGenerado.innerHTML = `✅ Contraseña generada: <b>${claveGenerada}</b>`;
+                            badgeGenerado.style.background = "#d4edda";
+                        } else if (cedulaNum && !/^\d{7,8}$/.test(cedulaNum)) {
+                            inputClave.value = '';
+                            badgeGenerado.innerHTML = "⚠️ Cédula debe tener entre 7 y 8 números";
+                            badgeGenerado.style.background = "#fdecea";
+                        } else if (nombreCompleto.length < 3) {
+                            inputClave.value = '';
+                            badgeGenerado.innerHTML = "👤 Ingrese nombre completo para generar";
+                            badgeGenerado.style.background = "#fff3cd";
+                        } else {
+                            inputClave.value = '';
+                            badgeGenerado.innerHTML = "⚡ Generada desde nombre y cédula";
+                            badgeGenerado.style.background = "";
+                        }
+                    }
+
+                    inputCedula.addEventListener('input', generarContrasena);
+                    selectPrefijo.addEventListener('change', generarContrasena);
+                    document.getElementById('swal-nombre').addEventListener('input', generarContrasena);
+
+                    let passwordVisible = false;
+                    togglePassword.addEventListener('click', function () {
+                        passwordVisible = !passwordVisible;
+                        inputClave.type = passwordVisible ? 'text' : 'password';
+                        this.className = passwordVisible ? 'fas fa-eye' : 'fas fa-eye-slash';
+                    });
+
+                    ['swal-cedula', 'swal-nombre', 'swal-email', 'swal-telefono'].forEach(id => {
+                        document.getElementById(id)?.addEventListener('input', () => {
+                            document.getElementById(id).classList.remove('error-input');
+                        });
+                    });
+                },
+
+                preConfirm: () => {
+                    const prefijo = document.getElementById('swal-prefijo').value;
+                    const cedulaNum = document.getElementById('swal-cedula').value.trim();
+                    const cedula = prefijo + cedulaNum;
+                    const nombre = document.getElementById('swal-nombre').value.trim();
+                    const email = document.getElementById('swal-email').value.trim();
+                    const telefono = document.getElementById('swal-telefono').value.trim();
+                    const direccion = document.getElementById('swal-direccion').value.trim();
+                    const clave = document.getElementById('swal-clave').value.trim();
+                    const id_rol = document.getElementById('swal-rol').value;
+
+                    ['swal-cedula', 'swal-nombre', 'swal-email', 'swal-telefono'].forEach(id => {
+                        document.getElementById(id)?.classList.remove('error-input');
+                    });
+
+                    let errores = [];
+
+                    if (!cedulaNum || !/^\d{7,8}$/.test(cedulaNum)) {
+                        document.getElementById('swal-cedula').classList.add('error-input');
+                        errores.push('📇 Cédula inválida (debe tener entre 7 y 8 números)');
+                    }
+
+                    if (!nombre || nombre.length < 3) {
+                        document.getElementById('swal-nombre').classList.add('error-input');
+                        errores.push('👤 Nombre inválido');
+                    }
+
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.(com|net|org|ve|edu|gov)$/i;
+                    if (!email || !emailRegex.test(email)) {
+                        document.getElementById('swal-email').classList.add('error-input');
+                        errores.push('📧 Correo inválido');
+                    }
+
+                    if (!telefono || !/^[\d\-+()\s]{7,15}$/.test(telefono)) {
+                        document.getElementById('swal-telefono').classList.add('error-input');
+                        errores.push('📞 Teléfono inválido');
+                    }
+
+                    if (!clave) {
+                        errores.push('🔑 No se generó la contraseña');
+                    }
+
+                    if (errores.length > 0) {
+                        Swal.showValidationMessage(errores.join('<br>'));
+                        return false;
+                    }
+
+                    return { cedula, nombre, email, telefono, direccion, clave, id_rol };
+                }
+            });
+
+            if (formValues) {
+                Swal.fire({
+                    title: 'Registrando en Base de Datos...',
+                    allowOutsideClick: false
+                });
+
+                Swal.showLoading();
+
+                try {
+                    const activeId = currentUser.id_usuario || currentUser.id;
+
+                    const res = await fetch('../backend/gestion_usuarios.php?action=create', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            ...formValues,
+                            role_solicitante: currentUser.rol,
+                            activo_id: activeId
+                        })
+                    });
+
+                    const data = await res.json();
+
+                    if (data.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: '¡Empleado Registrado!',
+                            text: 'Se ha creado el acceso con éxito.',
+                            confirmButtonColor: '#3B7BC0'
+                        });
+
+                        cargarUsuarios();
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error de Registro',
+                            text: data.message || 'No se pudo procesar la creación.',
+                            confirmButtonColor: '#3B7BC0'
+                        });
+                    }
+
+                } catch (e) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Fallo de Conexión',
+                        text: 'Hubo un error contactando al servidor.',
+                        confirmButtonColor: '#3B7BC0'
+                    });
+                }
+            }
+        }
+
+        async function eliminarUsuario(id) {
+            const confirm = await Swal.fire({
+                title: '¿Revocar Acceso?',
+                text: "Estás a punto de eliminar el acceso de este usuario al sistema. Esta acción es permanente.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Sí, Eliminar Acceso',
+                cancelButtonText: 'Cancelar'
+            });
+
+            if (confirm.isConfirmed) {
+                try {
+                    const activeId = currentUser.id_usuario || currentUser.id;
+                    const res = await fetch(`../backend/gestion_usuarios.php?action=delete&id=${id}&activo_id=${activeId}`);
+                    const data = await res.json();
+
+                    if (data.success) {
+                        Swal.fire('Acceso Revocado', 'El usuario ha sido eliminado correctamente.', 'success');
+                        cargarUsuarios();
+                    } else {
+                        Swal.fire('Operación Denegada', data.message || 'Error al eliminar.', 'error');
+                    }
+                } catch (e) {
+                    Swal.fire('Error', 'Fallo de conexión.', 'error');
+                }
+            }
+        }
+
+        function toggleSidebar() {
+            document.getElementById("sidebar").classList.toggle("active");
+        }
+
+        document.getElementById('logout-btn').onclick = (e) => {
+            e.preventDefault();
+            localStorage.removeItem('usuario_actual');
+            window.location.href = "../index.html";
+        };
+
+        window.onload = async function () {
+            await applySecurity();
+            cargarUsuarios();
+        };
+    </script>
+</body>
+
+</html>

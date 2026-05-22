@@ -1,29 +1,57 @@
 <?php
-session_start();
-header('Content-Type: application/json');
 require_once 'db.php';
 
-$correo = $_POST['correo'] ?? '';
-$clave = $_POST['clave'] ?? '';
+header('Content-Type: application/json');
+
+$correo = filter_var(trim($_POST['correo'] ?? ''), FILTER_VALIDATE_EMAIL);
+$clave = trim($_POST['clave'] ?? '');
+
+if (!$correo || !$clave) {
+    echo json_encode(["success" => false, "message" => "Correo y clave son requeridos."]);
+    exit;
+}
+
+require_once 'secure_session.php';
 
 try {
-    $stmt = $conexion->prepare("SELECT id_usuario, rol, contraseña FROM usuario WHERE correo = ?");
-    $stmt->execute([$correo]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    session_regenerate_id(true);
 
-    if (!$user) {
-        echo json_encode(["success" => false, "message" => "El correo no existe en la base de datos."]);
-    }
-    else if (!password_verify($clave, $user['contraseña'])) {
-        echo json_encode(["success" => false, "message" => "La clave es incorrecta para este correo."]);
-    }
-    else {
-        $_SESSION['id_usuario'] = $user['id_usuario'];
-        $_SESSION['rol'] = $user['rol'];
-        echo json_encode(["success" => true, "rol" => $user['rol']]);
+    // Buscamos el usuario y su nombre real en la tabla persona
+    $stmt = $conexion->prepare("SELECT u.id_usuario, r.nombre_rol as rol, u.password, p.nombre, u.primer_login 
+                                FROM usuario u 
+                                JOIN persona p ON u.id_persona = p.id_persona 
+                                JOIN roles r ON u.id_rol = r.id_rol
+                                WHERE u.correo = ?");
+    $stmt->execute([$correo]);
+    $user = $stmt->fetch();
+
+    if (!$user || !password_verify($clave, $user['password'])) {
+        echo json_encode(["success" => false, "message" => "Correo o contraseña incorrectos."]);
+    } else {
+        // Estandarizamos variables de sesión
+        $_SESSION['usuario_id'] = $user['id_usuario'];
+        $_SESSION['usuario_rol'] = $user['rol'];
+        $_SESSION['usuario_nombre'] = $user['nombre'];
+
+        $es_primer_login = (int)$user['primer_login'];
+
+        // Si es el primer login, lo marcamos como 0 para la próxima vez
+        if ($es_primer_login === 1) {
+            $updateStmt = $conexion->prepare("UPDATE usuario SET primer_login = 0 WHERE id_usuario = ?");
+            $updateStmt->execute([$user['id_usuario']]);
+        }
+
+        echo json_encode([
+            "success" => true,
+            "id_usuario" => $user['id_usuario'],
+            "rol" => $user['rol'],
+            "nombre" => $user['nombre'],
+            "primer_login" => $es_primer_login
+        ]);
     }
 }
 catch (PDOException $e) {
-    echo json_encode(["success" => false, "message" => "Error de BD: " . $e->getMessage()]);
+    error_log("[LOGIN] Error de BD: " . $e->getMessage());
+    echo json_encode(["success" => false, "message" => "Error de BD. Contacte al administrador."]);
 }
 ?>

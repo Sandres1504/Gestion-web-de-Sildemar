@@ -1,8 +1,7 @@
 <?php
-// backed/check_session.php
-session_start();
-if (!isset($_SESSION['id_usuario'])) {
-    header("Location: index.html");
+require_once __DIR__ . '/secure_session.php';
+if (!isset($_SESSION['usuario_id'])) {
+    header("Location: ../index.html");
     exit();
 }
 ?>

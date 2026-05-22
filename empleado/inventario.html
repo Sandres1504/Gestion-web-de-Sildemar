@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventario - Sildemar</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+
+    <div class="sidebar">
+
+        <h2>SILDEMAR</h2>
+
+        <a href="empleado.html"><i class="fas fa-home"></i> Mi Panel</a>
+
+        <a href="#"><i class="fas fa-boxes"></i> Ver Inventario</a>
+
+        <a href="nueva_solicitud.html"><i class="fas fa-plus-circle"></i> Nueva Solicitud</a>
+
+        <a href="mis_solicitudes.html"><i class="fas fa-shopping-cart"></i> Mis Solicitudes</a>
+
+        <a href="perfil.html"><i class="fas fa-user-edit"></i> Mi Perfil</a>
+
+        <a href="#" id="logout-btn" style="margin-top:40px;background:#c0392b;">
+            <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+        </a>
+
+    </div>
+
+    <div class="main-content">
+
+        <header>
+            <h2>📦 Consulta de Inventario</h2>
+            <br>
+            <input type="text" id="busqueda" class="search-box" placeholder="Buscar producto, código, marca o carro...">
+        </header>
+
+        <div class="readonly-banner">
+            <i class="fas fa-info-circle"></i>
+            Vista de solo consulta. Para añadir o modificar productos, contacta al Administrador.
+        </div>
+
+        <table>
+
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Producto</th>
+                    <th>Marca</th>
+                    <th>Carro</th>
+                    <th>Año</th>
+                    <th>Precio Venta</th>
+                    <th>Stock</th>
+                </tr>
+            </thead>
+
+            <tbody id="tablaInventario"></tbody>
+
+        </table>
+
+    </div>
+
+    <script>
+
+        function applySecurity() {
+
+            const userData = JSON.parse(localStorage.getItem('usuario_actual'))
+            const userRole = String(userData?.rol || '').trim().toLowerCase();
+
+            if (!userData || userRole !== 'empleado') {
+                window.location.href = "../index.html"
+            }
+
+        }
+
+        document.getElementById('logout-btn').addEventListener('click', function (e) {
+
+            e.preventDefault()
+
+            localStorage.removeItem('usuario_actual')
+
+            window.location.href = "../index.html"
+
+        })
+
+        let productos = [];
+
+        let tasaDolarGlobal = 1;
+
+        async function cargarInventario() {
+            try {
+                // Fetch rate
+                const rateRes = await fetch('../backend/get_reportes.php?action=get_rate', { credentials: 'same-origin' });
+                const rateData = await rateRes.json();
+                tasaDolarGlobal = parseFloat(rateData.tasa_dolar) || 1;
+
+                const res = await fetch('../backend/inventario.php?action=list', { credentials: 'same-origin' });
+                const data = await res.json();
+
+                productos = data.map(p => ({
+                    id: p.id_producto,
+                    codigo: p.codigo || `PROD-${p.id_producto}`,
+                    nombre: p.nombre_producto,
+                    marca: p.marca_repuesto || "N/A",
+                    carro: p.marca_carro || "N/A",
+                    anio: "Universal",
+                    precio: parseFloat(p.precio).toFixed(2),
+                    stock: p.stock_actual
+                }));
+
+                mostrarProductos(productos);
+            } catch (e) {
+                console.error("Error cargando inventario:", e);
+            }
+        }
+
+        function mostrarProductos(lista) {
+
+            const tabla = document.getElementById("tablaInventario")
+
+            tabla.innerHTML = ""
+
+            lista.forEach(p => {
+
+                const precioBs = (parseFloat(p.precio) * tasaDolarGlobal).toFixed(2);
+                const stockClass = parseInt(p.stock) < 5 ? 'class="stock-alert"' : '';
+
+                tabla.innerHTML += `
+
+<tr>
+
+<td>${p.codigo}</td>
+
+<td>${p.nombre}</td>
+
+<td>${p.marca}</td>
+
+<td>${p.carro}</td>
+
+<td>${p.anio}</td>
+
+<td>Bs ${precioBs} <br><small style="color:#555;">($${p.precio})</small></td>
+
+<td ${stockClass}>${p.stock}${parseInt(p.stock) < 5 ? ' ⚠️' : ''}</td>
+
+</tr>
+
+`
+
+            })
+
+        }
+
+        function buscarProducto() {
+
+            const texto = document.getElementById("busqueda").value.toLowerCase()
+
+            const filtrados = productos.filter(p =>
+
+                p.codigo.toLowerCase().includes(texto) ||
+
+                p.nombre.toLowerCase().includes(texto) ||
+
+                p.marca.toLowerCase().includes(texto) ||
+
+                p.carro.toLowerCase().includes(texto)
+
+            )
+
+            mostrarProductos(filtrados)
+
+        }
+
+        document.getElementById("busqueda").addEventListener("keyup", buscarProducto)
+
+        window.onload = function () {
+
+            applySecurity()
+
+            cargarInventario()
+
+        }
+
+    </script>
+
+</body>
+
+</html>

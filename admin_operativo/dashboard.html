@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control - Sildemar</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+
+    <div class="sidebar" id="sidebar">
+        <h2>SILDEMAR</h2>
+
+        <a href="dashboard.html">
+            <i class="fas fa-home"></i> Inicio
+        </a>
+
+
+
+        <a href="inventario.html">
+            <i class="fas fa-boxes"></i> Inventario
+        </a>
+
+        <a href="solicitudes.html">
+            <i class="fas fa-shopping-cart"></i> Solicitudes
+        </a>
+
+        <a href="historial_clientes.html">
+            <i class="fas fa-users"></i> Historial Clientes
+        </a>
+
+        <a href="reportes.html">
+            <i class="fas fa-file-pdf"></i> Reportes
+        </a>
+        <a href="perfil.html">
+            <i class="fas fa-user-edit"></i> Mi Perfil
+        </a>
+
+        <a href="../index.html" class="btn-logout" id="logout-btn">
+            <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+        </a>
+    </div>
+
+    <div class="main-content">
+        <header>
+            <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
+            <h1>Panel de Control</h1>
+            <div style="background: #eef2f7; padding: 10px; border-radius: 8px; display: flex; align-items: center; gap: 10px;">
+                <label style="font-weight: bold; color: #3B7BC0;">Tasa BCV (Bs):</label>
+                <input type="number" id="input-tasa" step="0.01" style="width: 100px; margin: 0; padding: 5px;">
+                <button onclick="actualizarTasa()" class="btn-blue" style="padding: 5px 10px;">Actualizar</button>
+            </div>
+            <div style="color: #3B7BC0; font-weight: bold;">
+                <i class="fas fa-user-circle"></i> <span id="user-role-display">Cargando...</span>
+            </div>
+        </header>
+
+        <main>
+            <div class="cards">
+                <div class="card">
+                    <h3><i class="fas fa-box"></i> Inventario Total</h3>
+                    <p>120 Artículos</p>
+                </div>
+                <div class="card">
+                    <h3><i class="fas fa-clock"></i> Solicitudes Pendientes</h3>
+                    <p>8 Pedidos</p>
+                </div>
+                <div class="card">
+                    <h3><i class="fas fa-check-circle"></i> Completadas</h3>
+                    <p>45 Éxitos</p>
+                </div>
+                <div class="card" style="cursor: pointer; background: #eef2f7;"
+                    onclick="window.location.href='../Cliente/cliente.html'">
+                    <h3><i class="fas fa-store"></i> Catálogo</h3>
+                    <p>Vista del Cliente</p>
+                </div>
+            </div>
+
+            <div class="dashboard-section">
+                <h3><i class="fas fa-chart-pie"></i> Análisis de Datos</h3>
+
+                <div class="charts-container">
+                    <div class="chart-box">
+                        <h4>Distribución por Categorías</h4>
+                        <canvas id="tortaChart"></canvas>
+                    </div>
+
+                    <div class="chart-box">
+                        <h4>Movimiento de Inventario</h4>
+                        <canvas id="barrasChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // 1. APLICAR SEGURIDAD REAL AL CARGAR
+        async function applySecurity() {
+            // Obtenemos los datos del usuario que guardamos en el login
+            const userData = JSON.parse(localStorage.getItem('usuario_actual'));
+
+            // Si no hay datos, significa que no ha iniciado sesión, lo devolvemos al login
+            if (!userData) {
+                window.location.href = "../index.html";
+                return;
+            }
+
+            if (userData.rol !== 'Gerente Operacional') {
+                alert("Acceso denegado. Solo el Gerente Operacional puede ver esta página.");
+                window.location.href = "../index.html";
+                return;
+            }
+
+            // Mostramos el nombre y rol real en la cabecera
+            const roleDisplay = document.getElementById('user-role-display');
+            roleDisplay.innerText = `${userData.nombre || 'Usuario'} (${userData.rol})`;
+
+            // Verificar si es el primer inicio de sesión
+            if (userData.primer_login === 1) {
+                Swal.fire({
+                    title: '¡Aviso de Seguridad!',
+                    text: 'Es tu primera vez en el sistema. Tu contraseña actual no es segura. Por favor, cámbiala en tu perfil.',
+                    icon: 'warning',
+                    confirmButtonText: 'Ir a Mi Perfil',
+                    confirmButtonColor: '#3B7BC0',
+                    allowOutsideClick: false
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.location.href = 'perfil.html';
+                    }
+                });
+
+                // Actualizamos el objeto local para que no vuelva a salir en esta sesión
+                userData.primer_login = 0;
+                localStorage.setItem('usuario_actual', JSON.stringify(userData));
+            }
+
+            // Cargar datos dinámicos desde la BD
+            try {
+                const response = await fetch('../backend/dashboard.php');
+                const result = await response.json();
+
+                if (result.success) {
+                    document.getElementById('input-tasa').value = result.metrics.tasa_dolar;
+                    const tasaDolar = result.metrics.tasa_dolar || 1;
+                    const ventasUSD = parseFloat(result.metrics.ventas) || 0;
+                    const ventasBs = (ventasUSD * tasaDolar).toFixed(2);
+
+                    document.querySelector('.cards').innerHTML = `
+                        <div class="card">
+                            <h3><i class="fas fa-box"></i> Inventario Total</h3>
+                            <p>${result.metrics.productos} Artículos</p>
+                        </div>
+                        <div class="card">
+                            <h3><i class="fas fa-clock"></i> Solicitudes Pendientes</h3>
+                            <p>${result.metrics.pendientes} Pedidos</p>
+                        </div>
+                        <div class="card">
+                            <h3><i class="fas fa-dollar-sign"></i> Total de Solicitudes</h3>
+                            <p>Bs ${ventasBs} <br><small style="color:#555;">($${ventasUSD.toFixed(2)})</small></p>
+                        </div>
+                        <div class="card" style="cursor: pointer; background: #eef2f7;" onclick="window.location.href='../cliente/cliente.html'">
+                            <h3><i class="fas fa-store"></i> Catálogo</h3>
+                            <p>Vista del Cliente</p>
+                        </div>
+                    `;
+
+                    // Actualizar gráfico de categorías con datos reales
+                    const marcasLabels = result.grafico.map(g => g.marca);
+                    const marcasStock = result.grafico.map(g => g.cantidad);
+
+                    const ctxTorta = document.getElementById('tortaChart').getContext('2d');
+                    new Chart(ctxTorta, {
+                        type: 'pie',
+                        data: {
+                            labels: marcasLabels.length > 0 ? marcasLabels : ['Sin Datos'],
+                            datasets: [{
+                                label: 'Stock por Categoría',
+                                data: marcasStock.length > 0 ? marcasStock : [1],
+                                backgroundColor: ['#3B7BC0', '#74A6D6', '#A5D6A7', '#FFAB91', '#FFF59D'],
+                                borderWidth: 1
+                            }]
+                        },
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                    labels: {
+                                        boxWidth: 12,
+                                        padding: 15
+                                    }
+                                }
+                            }
+                        }
+                    });
+
+                    // Configurando la gráfica de barras reales (Ingresos por mes)
+                    const mesesPlano = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+                    const barrasLabels = result.graficoBarras && result.graficoBarras.length > 0
+                        ? result.graficoBarras.map(b => mesesPlano[b.mes - 1])
+                        : ['Sin Datos'];
+                    const barrasVentas = result.graficoBarras && result.graficoBarras.length > 0
+                        ? result.graficoBarras.map(b => b.ventas)
+                        : [0];
+
+                    const ctxBarras = document.getElementById('barrasChart').getContext('2d');
+                    new Chart(ctxBarras, {
+                        type: 'bar',
+                        data: {
+                            labels: barrasLabels,
+                            datasets: [{
+                                label: 'Ingresos Mensuales ($)',
+                                data: barrasVentas,
+                                backgroundColor: '#3B7BC0'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: 'Meses del Año',
+                                        color: '#3B7BC0',
+                                        font: { weight: 'bold' }
+                                    }
+                                },
+                                y: {
+                                    title: {
+                                        display: true,
+                                        text: 'Ingresos ($)',
+                                        color: '#3B7BC0',
+                                        font: { weight: 'bold' }
+                                    },
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+
+                } else {
+                    console.error("Error cargando dashboard:", result.message);
+                }
+            } catch (error) {
+                console.error("Error en la petición del dashboard:", error);
+            }
+        }
+
+        async function actualizarTasa() {
+            const tasaInput = document.getElementById('input-tasa');
+            const nuevaTasa = parseFloat(tasaInput.value);
+
+            if (isNaN(nuevaTasa) || nuevaTasa <= 0) {
+                Swal.fire('Atención', 'Por favor, ingrese una tasa válida mayor a cero.', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch('../backend/get_reportes.php?action=update_rate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tasa: nuevaTasa })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    Swal.fire('¡Éxito!', 'La tasa del dólar ha sido actualizada.', 'success').then(() => {
+                        location.reload(); 
+                    });
+                } else {
+                    Swal.fire('Error', result.message || 'No se pudo actualizar la tasa', 'error');
+                }
+            } catch (error) {
+                console.error("Error al actualizar la tasa:", error);
+                Swal.fire('Error', 'Ocurrió un error de conexión con el servidor.', 'error');
+            }
+        }
+
+        // 2. FUNCIÓN PARA CERRAR SESIÓN
+        document.getElementById('logout-btn').addEventListener('click', function (e) {
+            e.preventDefault();
+            localStorage.removeItem('usuario_actual');
+            window.location.href = "../index.html";
+        });
+
+        // 3. RESPONSIVE SIDEBAR
+        function toggleSidebar() {
+            const sidebar = document.getElementById("sidebar");
+            sidebar.classList.toggle("active");
+        }
+
+        // Ejecutar seguridad y carga al iniciar
+        window.onload = applySecurity;
+    </script>
+</body>
+
+</html>
